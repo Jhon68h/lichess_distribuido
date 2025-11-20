@@ -6,6 +6,7 @@ Funciones de extracción de features de ajedrez a partir de FEN usando python-ch
 Diseñadas como funciones puras (sin Spark), para luego poder envolverlas en UDFs.
 """
 
+import math
 import chess
 
 
@@ -66,7 +67,7 @@ def material_counts(board: chess.Board):
 
 
 # ======================================================================
-# 2. Estructura de peones
+# 2. Estructura de peones "clásica"
 # ======================================================================
 
 def _pawns_by_file(board: chess.Board, color: bool):
@@ -175,7 +176,119 @@ def pawn_structure_stats(board: chess.Board, color: bool, prefix: str):
 
 
 # ======================================================================
-# 3. Wrapper principal por FEN
+# 3. Features geométricos de peones y rey
+# ======================================================================
+
+def king_pawn_geometry(board: chess.Board, color: bool, prefix: str):
+    """
+    Features relacionados con cómo los peones protegen al rey:
+    - f"{prefix}_king_pawn_shield": peones en un rectángulo 3x2 delante del rey
+      (según la dirección del color).
+    - f"{prefix}_king_pawns_near": peones propios en un cuadrado 5x5 alrededor
+      del rey (distancia de Chebyshev <= 2).
+    """
+    king_sq = board.king(color)
+    if king_sq is None:
+        return {
+            f"{prefix}_king_pawn_shield": 0.0,
+            f"{prefix}_king_pawns_near": 0.0,
+        }
+
+    king_file = chess.square_file(king_sq)
+    king_rank = chess.square_rank(king_sq)
+
+    own_pawns = board.pieces(chess.PAWN, color)
+
+    # 1) Peones cercanos al rey (ventana 5x5, distancia Chebyshev <= 2)
+    pawns_near = 0
+    for sq in own_pawns:
+        f = chess.square_file(sq)
+        r = chess.square_rank(sq)
+        if max(abs(f - king_file), abs(r - king_rank)) <= 2:
+            pawns_near += 1
+
+    # 2) Escudo de peones delante del rey
+    # Para blancas: filas superiores (rank +1, +2)
+    # Para negras: filas inferiores (rank -1, -2)
+    shield = 0
+    if color == chess.WHITE:
+        rank_range = [king_rank + 1, king_rank + 2]
+    else:
+        rank_range = [king_rank - 1, king_rank - 2]
+
+    file_range = [king_file - 1, king_file, king_file + 1]
+
+    for f in file_range:
+        if f < 0 or f > 7:
+            continue
+        for r in rank_range:
+            if r < 0 or r > 7:
+                continue
+            sq = chess.square(f, r)
+            piece = board.piece_at(sq)
+            if piece is not None and piece.piece_type == chess.PAWN and piece.color == color:
+                shield += 1
+
+    return {
+        f"{prefix}_king_pawn_shield": float(shield),
+        f"{prefix}_king_pawns_near": float(pawns_near),
+    }
+
+
+def pawn_dispersion(board: chess.Board, color: bool, prefix: str):
+    """
+    Mide la dispersión geométrica de los peones de un color:
+
+    - f"{prefix}_pawn_file_mean": media de columna (0 = 'a', 7 = 'h')
+    - f"{prefix}_pawn_file_std": desviación estándar de columnas
+    - f"{prefix}_pawn_rank_mean": media de fila (0 = 1ª, 7 = 8ª)
+    - f"{prefix}_pawn_rank_std": desviación estándar de filas
+    - f"{prefix}_pawn_file_span": max(file) - min(file)
+    - f"{prefix}_pawn_rank_span": max(rank) - min(rank)
+
+    Si no hay peones, devuelve todo 0.0 (posición muy "dispersa" en el sentido
+    de que no hay estructura de peones).
+    """
+    pawns = list(board.pieces(chess.PAWN, color))
+    if not pawns:
+        return {
+            f"{prefix}_pawn_file_mean": 0.0,
+            f"{prefix}_pawn_file_std": 0.0,
+            f"{prefix}_pawn_rank_mean": 0.0,
+            f"{prefix}_pawn_rank_std": 0.0,
+            f"{prefix}_pawn_file_span": 0.0,
+            f"{prefix}_pawn_rank_span": 0.0,
+        }
+
+    files = [chess.square_file(sq) for sq in pawns]
+    ranks = [chess.square_rank(sq) for sq in pawns]
+
+    n = float(len(pawns))
+
+    file_mean = sum(files) / n
+    rank_mean = sum(ranks) / n
+
+    file_var = sum((f - file_mean) ** 2 for f in files) / n
+    rank_var = sum((r - rank_mean) ** 2 for r in ranks) / n
+
+    file_std = math.sqrt(file_var)
+    rank_std = math.sqrt(rank_var)
+
+    file_span = max(files) - min(files)
+    rank_span = max(ranks) - min(ranks)
+
+    return {
+        f"{prefix}_pawn_file_mean": float(file_mean),
+        f"{prefix}_pawn_file_std": float(file_std),
+        f"{prefix}_pawn_rank_mean": float(rank_mean),
+        f"{prefix}_pawn_rank_std": float(rank_std),
+        f"{prefix}_pawn_file_span": float(file_span),
+        f"{prefix}_pawn_rank_span": float(rank_span),
+    }
+
+
+# ======================================================================
+# 4. Wrapper principal por FEN
 # ======================================================================
 
 def extract_features_from_fen(fen: str):
@@ -184,16 +297,22 @@ def extract_features_from_fen(fen: str):
 
     Devuelve un dict con:
     - material_white, material_black, material_diff
-    - pawn features para blancas y negras
-    - diferencias white - black para algunas magnitudes
+    - pawn features clásicas para blancas y negras
+    - diferencias white - black para algunas magnitudes de peones
+    - features geométricos:
+        * escudo de peones y peones cercanos al rey por color
+        * dispersión de peones por columnas/filas por color
+        * diferencias blanco - negro en algunos de estos rasgos geométricos
     """
     board = safe_board_from_fen(fen)
     if board is None:
-        # Puedes devolver None o ceros. Aquí uso None para luego tratarlos como missing.
+        # Todos los features a None si el FEN es inválido
         return {
+            # Material
             "material_white": None,
             "material_black": None,
             "material_diff": None,
+            # Peones clásicos
             "white_pawns": None,
             "white_doubled_pawns": None,
             "white_isolated_pawns": None,
@@ -211,6 +330,28 @@ def extract_features_from_fen(fen: str):
             "advanced_pawns_diff": None,
             "isolated_pawns_diff": None,
             "pawn_islands_diff": None,
+            # Geometría rey-peones
+            "white_king_pawn_shield": None,
+            "white_king_pawns_near": None,
+            "black_king_pawn_shield": None,
+            "black_king_pawns_near": None,
+            "king_pawn_shield_diff": None,
+            "king_pawns_near_diff": None,
+            # Dispersión de peones
+            "white_pawn_file_mean": None,
+            "white_pawn_file_std": None,
+            "white_pawn_rank_mean": None,
+            "white_pawn_rank_std": None,
+            "white_pawn_file_span": None,
+            "white_pawn_rank_span": None,
+            "black_pawn_file_mean": None,
+            "black_pawn_file_std": None,
+            "black_pawn_rank_mean": None,
+            "black_pawn_rank_std": None,
+            "black_pawn_file_span": None,
+            "black_pawn_rank_span": None,
+            "pawn_file_std_diff": None,
+            "pawn_rank_std_diff": None,
         }
 
     feats = {}
@@ -218,17 +359,43 @@ def extract_features_from_fen(fen: str):
     # Material
     feats.update(material_counts(board))
 
-    # Estructura de peones
+    # Estructura clásica de peones
     white_pawns = pawn_structure_stats(board, chess.WHITE, prefix="white")
     black_pawns = pawn_structure_stats(board, chess.BLACK, prefix="black")
     feats.update(white_pawns)
     feats.update(black_pawns)
 
-    # Diferencias blancas - negras en algunos stats de peones
+    # Geometría rey-peones
+    white_king_geom = king_pawn_geometry(board, chess.WHITE, prefix="white")
+    black_king_geom = king_pawn_geometry(board, chess.BLACK, prefix="black")
+    feats.update(white_king_geom)
+    feats.update(black_king_geom)
+
+    # Dispersión de peones
+    white_disp = pawn_dispersion(board, chess.WHITE, prefix="white")
+    black_disp = pawn_dispersion(board, chess.BLACK, prefix="black")
+    feats.update(white_disp)
+    feats.update(black_disp)
+
+    # Diferencias blancas - negras en algunos stats de peones (clásicos)
     feats["pawns_diff"] = feats["white_pawns"] - feats["black_pawns"]
     feats["passed_pawns_diff"] = feats["white_passed_pawns"] - feats["black_passed_pawns"]
     feats["advanced_pawns_diff"] = feats["white_advanced_pawns"] - feats["black_advanced_pawns"]
     feats["isolated_pawns_diff"] = feats["white_isolated_pawns"] - feats["black_isolated_pawns"]
     feats["pawn_islands_diff"] = feats["white_pawn_islands"] - feats["black_pawn_islands"]
+
+    # Diferencias blancas - negras en rasgos geométricos
+    feats["king_pawn_shield_diff"] = (
+        feats["white_king_pawn_shield"] - feats["black_king_pawn_shield"]
+    )
+    feats["king_pawns_near_diff"] = (
+        feats["white_king_pawns_near"] - feats["black_king_pawns_near"]
+    )
+    feats["pawn_file_std_diff"] = (
+        feats["white_pawn_file_std"] - feats["black_pawn_file_std"]
+    )
+    feats["pawn_rank_std_diff"] = (
+        feats["white_pawn_rank_std"] - feats["black_pawn_rank_std"]
+    )
 
     return feats
