@@ -303,6 +303,7 @@ def extract_features_from_fen(fen: str):
         * escudo de peones y peones cercanos al rey por color
         * dispersión de peones por columnas/filas por color
         * diferencias blanco - negro en algunos de estos rasgos geométricos
+    - movilidad (actividad de piezas): número de movimientos legales por color
     """
     board = safe_board_from_fen(fen)
     if board is None:
@@ -352,6 +353,10 @@ def extract_features_from_fen(fen: str):
             "black_pawn_rank_span": None,
             "pawn_file_std_diff": None,
             "pawn_rank_std_diff": None,
+            # Movilidad
+            "white_mobility": None,
+            "black_mobility": None,
+            "mobility_diff": None,
         }
 
     feats = {}
@@ -376,6 +381,19 @@ def extract_features_from_fen(fen: str):
     black_disp = pawn_dispersion(board, chess.BLACK, prefix="black")
     feats.update(white_disp)
     feats.update(black_disp)
+
+    # Movilidad: número de jugadas legales si mueve cada color
+    white_mobility = chess.Board(board.fen())  # copiar posición
+    white_mobility.turn = chess.WHITE
+    black_mobility = chess.Board(board.fen())
+    black_mobility.turn = chess.BLACK
+
+    w_mob = float(white_mobility.legal_moves.count())
+    b_mob = float(black_mobility.legal_moves.count())
+
+    feats["white_mobility"] = w_mob
+    feats["black_mobility"] = b_mob
+    feats["mobility_diff"] = w_mob - b_mob
 
     # Diferencias blancas - negras en algunos stats de peones (clásicos)
     feats["pawns_diff"] = feats["white_pawns"] - feats["black_pawns"]

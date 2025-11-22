@@ -12,9 +12,13 @@ from pyspark.sql.window import Window
 from chess_features import extract_features_from_fen
 
 
-# ======================================================================
-# 0. Sesión de Spark
-# ======================================================================
+
+# Número de movimientos completos (1., 2., 3., ...) que consideramos "apertura"
+OPENING_MOVES = 10
+
+# Número de movimientos completos para la FEN de "medio juego"
+MIDGAME_MOVES = 20
+
 
 def create_spark_session(app_name: str = "chess-ml-local") -> SparkSession:
     return (
@@ -24,10 +28,6 @@ def create_spark_session(app_name: str = "chess-ml-local") -> SparkSession:
         .getOrCreate()
     )
 
-
-# ======================================================================
-# 1. Utilidades básicas de partida (PGN → FEN, etiqueta, nº de jugadas)
-# ======================================================================
 
 def winner_to_label(winner: str):
     """
@@ -84,6 +84,37 @@ def board_fen_after_n_moves(pgn_str: str, n_moves: int) -> str:
     return board.fen()
 
 
+def board_final_fen(pgn_str: str) -> str:
+    """
+    Reproduce la partida completa y devuelve el FEN de la posición final.
+    Si hay algún error, devuelve la posición alcanzada hasta el fallo.
+    """
+    if pgn_str is None:
+        return None
+
+    pgn_str = str(pgn_str).strip()
+    if not pgn_str:
+        return None
+
+    try:
+        game = chess.pgn.read_game(io.StringIO(pgn_str))
+    except Exception:
+        return None
+
+    if game is None:
+        return None
+
+    board = game.board()
+    try:
+        for move in game.mainline_moves():
+            board.push(move)
+    except Exception:
+        # devolvemos la última posición válida
+        pass
+
+    return board.fen()
+
+
 def total_moves_from_pgn(pgn_str: str) -> int:
     """
     Devuelve el número total de movimientos completos de la partida.
@@ -121,7 +152,6 @@ def total_moves_from_pgn(pgn_str: str) -> int:
     if ply_count == 0:
         return 0
 
-    # Número de movimientos completos (1., 2., 3., ...)
     total_moves = (ply_count + 1) // 2
     return int(total_moves)
 
@@ -129,17 +159,20 @@ def total_moves_from_pgn(pgn_str: str) -> int:
 # UDFs reutilizables
 winner_to_label_udf = F.udf(winner_to_label, T.IntegerType())
 
-fen_after_20_moves_udf = F.udf(
-    lambda pgn: board_fen_after_n_moves(pgn, n_moves=20),
+fen_after_opening_udf = F.udf(
+    lambda pgn: board_fen_after_n_moves(pgn, n_moves=OPENING_MOVES),
     T.StringType(),
 )
 
+fen_after_20_moves_udf = F.udf(
+    lambda pgn: board_fen_after_n_moves(pgn, n_moves=MIDGAME_MOVES),
+    T.StringType(),
+)
+
+fen_final_udf = F.udf(board_final_fen, T.StringType())
+
 total_moves_udf = F.udf(total_moves_from_pgn, T.IntegerType())
 
-
-# ======================================================================
-# 2. Utilidades Spark para alinear datasets
-# ======================================================================
 
 def add_row_index(df, index_col: str = "row_id"):
     """
@@ -154,7 +187,7 @@ def build_base_dataset(
     complete_path: str,
     pgn_path: str,
     pgn_col_name: str = "FEN",
-    sample_size: int = 50,
+    sample_size: int | None = None,
 ):
     """
     Construye el dataset base combinando:
@@ -165,8 +198,10 @@ def build_base_dataset(
     - columnas originales del CSV completo
     - columna PGN
     - label_white_win
-    - fen_after_20_moves
-    - total_moves
+    - fen_after_opening   (apertura)
+    - fen_after_20_moves  (medio juego aproximado)
+    - fen_final           (posición final)
+    - total_moves         (nº total de movimientos de la partida)
     """
 
     # Carga de los dos CSV
@@ -205,7 +240,7 @@ def build_base_dataset(
         & F.col("PGN").rlike(r"^\s*1\.")
     )
 
-    # Muestreo por límite de filas
+    # Muestreo opcional por límite de filas
     if sample_size is not None:
         df = df.limit(sample_size)
 
@@ -215,10 +250,20 @@ def build_base_dataset(
         winner_to_label_udf(F.col("Winner")),
     )
 
-    # FEN tras 20 jugadas completas (mitad de partida aproximada)
+    # FEN tras apertura, medio juego y final
+    df = df.withColumn(
+        "fen_after_opening",
+        fen_after_opening_udf(F.col("PGN")),
+    )
+
     df = df.withColumn(
         "fen_after_20_moves",
         fen_after_20_moves_udf(F.col("PGN")),
+    )
+
+    df = df.withColumn(
+        "fen_final",
+        fen_final_udf(F.col("PGN")),
     )
 
     # Número total de movimientos completos de la partida
@@ -228,11 +273,6 @@ def build_base_dataset(
     )
 
     return df
-
-
-# ======================================================================
-# 3. Features posicionales (material + peones) en Spark
-# ======================================================================
 
 FEATURE_KEYS = [
     "material_white",
@@ -255,8 +295,7 @@ FEATURE_KEYS = [
     "advanced_pawns_diff",
     "isolated_pawns_diff",
     "pawn_islands_diff",
-    # --- nuevas features geométricas ---
-    # Rey y escudo de peones
+    # Geometría rey-peones
     "white_king_pawn_shield",
     "white_king_pawns_near",
     "black_king_pawn_shield",
@@ -278,6 +317,10 @@ FEATURE_KEYS = [
     "black_pawn_rank_span",
     "pawn_file_std_diff",
     "pawn_rank_std_diff",
+    # Movilidad
+    "white_mobility",
+    "black_mobility",
+    "mobility_diff",
 ]
 
 FEATURE_SCHEMA = T.StructType(
@@ -291,7 +334,7 @@ def _fen_features_list(fen: str):
     en el mismo orden que FEATURE_KEYS.
     """
     feats = extract_features_from_fen(fen)
-    return [feats[k] for k in FEATURE_KEYS]
+    return [feats.get(k) for k in FEATURE_KEYS]
 
 
 fen_features_udf = F.udf(_fen_features_list, FEATURE_SCHEMA)
@@ -299,9 +342,58 @@ fen_features_udf = F.udf(_fen_features_list, FEATURE_SCHEMA)
 
 def add_positional_features(df, fen_col: str = "fen_after_20_moves"):
     """
-    Extrae features posicionales de la columna FEN indicada (por defecto,
-    fen_after_20_moves) y expande las columnas de features en el DataFrame.
+    Versión "clásica": extrae features posicionales de la columna FEN indicada
+    (por defecto, fen_after_20_moves) y expande las columnas de features
+    directamente, SIN prefijo (material_diff, pawns_diff, ...).
+
+    Esta función mantiene compatibilidad con tu código anterior para el midgame.
     """
     df = df.withColumn("features", fen_features_udf(F.col(fen_col)))
     df = df.select("*", "features.*").drop("features")
+    return df
+
+
+def add_positional_features_for_fen(df, fen_col: str, prefix: str):
+    """
+    Extrae features posicionales desde la columna FEN indicada y
+    los añade con un prefijo, por ejemplo:
+
+    prefix = "open"  →  columnas "open_material_diff", "open_pawns_diff", ...
+    prefix = "final" →  columnas "final_material_diff", ...
+    """
+    tmp_col = f"features_{prefix}"
+    df = df.withColumn(tmp_col, fen_features_udf(F.col(fen_col)))
+
+    for k in FEATURE_KEYS:
+        df = df.withColumn(f"{prefix}_{k}", F.col(f"{tmp_col}.{k}"))
+
+    df = df.drop(tmp_col)
+    return df
+
+
+def add_all_positional_features(df):
+    """
+    Añade features para las tres fases:
+
+    - Midgame (fen_after_20_moves), SIN prefijo (material_diff, pawns_diff, ...)
+    - Apertura (fen_after_opening), con prefijo "open_"
+    - Final (fen_final), con prefijo "final_"
+    """
+    # Midgame (compatibilidad con tu flujo anterior)
+    df = add_positional_features(df, fen_col="fen_after_20_moves")
+
+    # Apertura con prefijo "open_"
+    df = add_positional_features_for_fen(
+        df,
+        fen_col="fen_after_opening",
+        prefix="open",
+    )
+
+    # Final con prefijo "final_"
+    df = add_positional_features_for_fen(
+        df,
+        fen_col="fen_final",
+        prefix="final",
+    )
+
     return df

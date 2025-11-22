@@ -1,40 +1,73 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""
+Ejecución local de todo el flujo:
+1) Carga de CSVs de Lichess.
+2) Construcción de FEN en apertura/medio juego/final + features de peones y movilidad.
+3) Entrenamiento de modelos (regresión lineal, logística y RandomForest) con balance y calibración de umbral.
+4) Guardado de métricas, gráficas y dataset enriquecido.
+"""
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+import matplotlib.pyplot as plt
+from pyspark.sql import functions as F
+
 from chess_spark_pipeline import (
-    create_spark_session,
+    FEATURE_KEYS,
+    add_all_positional_features,
     build_base_dataset,
-    add_positional_features,
+    create_spark_session,
+)
+from model_training import (
+    train_linear_phase,
+    train_logistic_phase,
+    train_random_forest_phase,
 )
 
 
-if __name__ == "__main__":
-    COMPLETE_PATH = "../dataset/Lichess_2013_2014_Complete_sample.csv"
-    PGN_PATH = "../dataset/Lichess_2013_2014_FEN_sample.csv"
+def main():
+    base_dir = Path(__file__).resolve().parent
+    data_dir = base_dir.parent / "dataset"
+    exp_dir = base_dir.parent / "experimentos"
+    plots_dir = exp_dir / "plots"
+    exp_dir.mkdir(parents=True, exist_ok=True)
+    plots_dir.mkdir(parents=True, exist_ok=True)
 
-    # Usar 50 muestras (tu dataset ya está preparado para esto)
-    SAMPLE_SIZE = None
+    complete_path = data_dir / "Lichess_2013_2014_Complete_sample.csv"
+    pgn_path = data_dir / "Lichess_2013_2014_FEN_sample.csv"
+    output_parquet = exp_dir / "Lichess_2013_2014_features_full.parquet"
 
-    # Ruta donde se guardará el resultado completo
-    OUTPUT_PATH = "../experimentos/Lichess_2013_2014_features_full.parquet"
+    sample_size = None  # usar todo el sample disponible
+    n_show = 10
 
-    spark = create_spark_session()
-    # Reducir ruido de logs (quita la mayoría de WARN)
+    spark = create_spark_session("chess-ml-local")
     spark.sparkContext.setLogLevel("ERROR")
 
-    # 1) Construir dataset base: metadatos + PGN + label + FEN + total_moves
+    print("\n>>> Construyendo dataset base (PGN + FEN + label)...")
     df_base = build_base_dataset(
         spark,
-        complete_path=COMPLETE_PATH,
-        pgn_path=PGN_PATH,
-        pgn_col_name="FEN",  # columna con las jugadas "1. e4 e6 2. d4 ..."
-        sample_size=SAMPLE_SIZE,
+        complete_path=str(complete_path),
+        pgn_path=str(pgn_path),
+        pgn_col_name="FEN",
+        sample_size=sample_size,
     )
 
-    # 2) Añadir features posicionales (material, peones, geometría, etc.)
-    df_feat = add_positional_features(df_base)
+    print(">>> Añadiendo features posicionales para apertura/medio/final...")
+    df_feat = add_all_positional_features(df_base).cache()
+    df_feat = (
+        df_feat.filter(
+            F.col("fen_after_opening").isNotNull()
+            & F.col("fen_after_20_moves").isNotNull()
+            & F.col("fen_final").isNotNull()
+        )
+    ).cache()
+    total_rows = df_feat.count()  # materializa
+    print(f">>> Filas tras limpiar FEN inválidos: {total_rows}")
 
-    # 3) Mostrar una vista en terminal (similar a como tenías al principio)
+    print("\nVista rápida de midgame (después de 20 jugadas):")
     df_feat.select(
         "label_white_win",
         "total_moves",
@@ -46,10 +79,112 @@ if __name__ == "__main__":
         "king_pawn_shield_diff",
         "pawn_file_std_diff",
         "pawn_rank_std_diff",
-    ).show(SAMPLE_SIZE, truncate=False)
+    ).show(n_show, truncate=False)
 
-    # 4) Guardar todos los resultados (todas las columnas) en formato Parquet
-    df_feat.write.mode("overwrite").parquet(OUTPUT_PATH)
-    print(f"\nResultados guardados en: {OUTPUT_PATH}\n")
+    print(f"\n>>> Guardando dataset enriquecido en {output_parquet}")
+    df_feat.write.mode("overwrite").parquet(str(output_parquet))
+
+    # Entrenamiento por fase
+    phase_configs = [
+        ("midgame_move20", FEATURE_KEYS),
+        ("opening", [f"open_{k}" for k in FEATURE_KEYS]),
+        ("final", [f"final_{k}" for k in FEATURE_KEYS]),
+    ]
+
+    linear_metrics = []
+    logreg_metrics = []
+    rf_metrics = []
+    for phase_name, feature_cols in phase_configs:
+        print(f"\n>>> Entrenando modelo de regresión lineal para {phase_name}...")
+        res_lin = train_linear_phase(df_feat, feature_cols, phase_name, plots_dir, plot=False)
+        linear_metrics.append(res_lin)
+        if "error" in res_lin:
+            print(f"[{phase_name}] LINEAR ERROR: {res_lin['error']}")
+        else:
+            print(
+                f"[{phase_name}] Linear acc={res_lin['accuracy']:.3f}, "
+                f"prec={res_lin['precision']:.3f}, rec={res_lin['recall']:.3f}, rmse={res_lin['rmse']:.3f}"
+            )
+
+        print(f">>> Entrenando regresión logística para {phase_name}...")
+        res_log = train_logistic_phase(df_feat, feature_cols, phase_name, plots_dir, plot=True)
+        logreg_metrics.append(res_log)
+        if "error" in res_log:
+            print(f"[{phase_name}] LOGREG ERROR: {res_log['error']}")
+        else:
+            print(
+                f"[{phase_name}] LogReg auc={res_log['auc']:.3f}, "
+                f"f1={res_log['f1']:.3f}, acc={res_log['accuracy']:.3f}, "
+                f"umbral={res_log['threshold']:.2f}"
+            )
+
+        print(f">>> Entrenando Random Forest para {phase_name}...")
+        # Solo graficamos importancias para midgame para limitar a 5 gráficas totales
+        plot_rf = phase_name == "midgame_move20"
+        res_rf = train_random_forest_phase(df_feat, feature_cols, phase_name, plots_dir, plot=plot_rf)
+        rf_metrics.append(res_rf)
+        if "error" in res_rf:
+            print(f"[{phase_name}] RF ERROR: {res_rf['error']}")
+        else:
+            print(
+                f"[{phase_name}] RF auc={res_rf['auc']:.3f}, "
+                f"f1={res_rf['f1']:.3f}, acc={res_rf['accuracy']:.3f}, "
+                f"umbral={res_rf['threshold']:.2f}"
+            )
+
+    metrics_path = exp_dir / "model_metrics.json"
+    with open(metrics_path, "w", encoding="utf-8") as fh:
+        json.dump(
+            {
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "dataset_rows": total_rows,
+                "linear_regression": linear_metrics,
+                "logistic_regression": logreg_metrics,
+                "random_forest": rf_metrics,
+            },
+            fh,
+            indent=2,
+        )
+    print(f"\n>>> Métricas guardadas en {metrics_path}")
+    print(f">>> Gráficas guardadas en {plots_dir}")
+
+    # -------- Gráfica resumen (1 de 5) --------
+    def plot_metric_bar(results, model_name, metric_key, fname):
+        labels = [r["phase"] for r in results if "error" not in r]
+        values = [r.get(metric_key) for r in results if "error" not in r]
+        plt.figure(figsize=(6, 3))
+        plt.bar(labels, values, color="#2563eb")
+        plt.title(f"{model_name} - {metric_key.upper()}")
+        plt.ylim(0, 1)
+        plt.tight_layout()
+        out = plots_dir / fname
+        plt.savefig(out, dpi=150)
+        plt.close()
+        return out
+
+    bar_path = plot_metric_bar(logreg_metrics, "LogReg", "f1", "summary_logreg_f1.png")
+    print(f">>> Resumen F1 LogReg: {bar_path}")
+
+    # Conservar solo 5 gráficas en total:
+    # 1) summary_logreg_f1.png (arriba)
+    # 2-4) coeficientes logística (3 fases)
+    # 5) RF importancias para midgame (si se generó)
+    kept_plots = {bar_path}
+
+    for r in logreg_metrics:
+        if r.get("coef_plot"):
+            kept_plots.add(Path(r["coef_plot"]))
+    for r in rf_metrics:
+        if r.get("importances_plot") and "midgame_move20" in r.get("phase", ""):
+            kept_plots.add(Path(r["importances_plot"]))
+
+    # Eliminar cualquier otra gráfica para asegurar máximo 5 y no confusión
+    for png in plots_dir.glob("*.png"):
+        if png not in kept_plots:
+            png.unlink(missing_ok=True)
 
     spark.stop()
+
+
+if __name__ == "__main__":
+    main()

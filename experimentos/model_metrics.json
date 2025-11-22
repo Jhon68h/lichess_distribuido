@@ -1,0 +1,1066 @@
+{
+  "generated_at": "2025-11-22T17:49:32.653919+00:00",
+  "dataset_rows": 5000,
+  "linear_regression": [
+    {
+      "tp": 309,
+      "tn": 179,
+      "fp": 259,
+      "fn": 211,
+      "accuracy": 0.5093945720250522,
+      "precision": 0.5440140845070423,
+      "recall": 0.5942307692307692,
+      "f1": 0.568014705882353,
+      "rmse": 0.5000821884266453,
+      "r2": -0.007711783362443381,
+      "phase": "midgame_move20",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "intercept": 0.5051954477981195,
+      "coef_plot": null,
+      "top_coefficients": [
+        {
+          "feature": "black_pawn_file_mean",
+          "weight": -0.013094809142348635
+        },
+        {
+          "feature": "white_doubled_pawns",
+          "weight": -0.012872962605558485
+        },
+        {
+          "feature": "black_mobility",
+          "weight": 0.010782172031372375
+        },
+        {
+          "feature": "white_pawn_rank_span",
+          "weight": -0.010383713389252503
+        },
+        {
+          "feature": "white_pawn_file_mean",
+          "weight": -0.009827978217737073
+        },
+        {
+          "feature": "white_mobility",
+          "weight": 0.008613766140626401
+        },
+        {
+          "feature": "white_pawns",
+          "weight": -0.00823332241670944
+        },
+        {
+          "feature": "black_pawn_file_std",
+          "weight": 0.008119688811233785
+        },
+        {
+          "feature": "black_pawn_rank_mean",
+          "weight": -0.007308674112073343
+        },
+        {
+          "feature": "black_doubled_pawns",
+          "weight": 0.005926391470162826
+        },
+        {
+          "feature": "black_pawn_islands",
+          "weight": -0.005880778229939999
+        },
+        {
+          "feature": "black_pawns",
+          "weight": -0.005321693067628048
+        },
+        {
+          "feature": "isolated_pawns_diff",
+          "weight": -0.004863247678674352
+        },
+        {
+          "feature": "white_advanced_pawns",
+          "weight": 0.004827803424201897
+        },
+        {
+          "feature": "white_king_pawn_shield",
+          "weight": -0.004811441745365828
+        }
+      ]
+    },
+    {
+      "tp": 308,
+      "tn": 185,
+      "fp": 253,
+      "fn": 212,
+      "accuracy": 0.5146137787056367,
+      "precision": 0.5490196078431373,
+      "recall": 0.5923076923076923,
+      "f1": 0.5698427382053655,
+      "rmse": 0.5009138891207148,
+      "r2": -0.011066478070558494,
+      "phase": "opening",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "intercept": 0.5051954477981194,
+      "coef_plot": null,
+      "top_coefficients": [
+        {
+          "feature": "open_white_pawn_file_mean",
+          "weight": -0.015725931494471584
+        },
+        {
+          "feature": "open_black_advanced_pawns",
+          "weight": 0.012877007198442843
+        },
+        {
+          "feature": "open_white_advanced_pawns",
+          "weight": 0.012019063913418082
+        },
+        {
+          "feature": "open_black_pawn_islands",
+          "weight": -0.010183467572495795
+        },
+        {
+          "feature": "open_black_pawn_file_mean",
+          "weight": -0.008441346534622349
+        },
+        {
+          "feature": "open_black_pawn_rank_span",
+          "weight": -0.007746094759524393
+        },
+        {
+          "feature": "open_white_pawn_file_span",
+          "weight": 0.006837756372853137
+        },
+        {
+          "feature": "open_white_pawn_islands",
+          "weight": -0.006202913120623282
+        },
+        {
+          "feature": "open_white_king_pawn_shield",
+          "weight": -0.005833468088861242
+        },
+        {
+          "feature": "open_white_passed_pawns",
+          "weight": -0.00527188481703078
+        },
+        {
+          "feature": "open_material_diff",
+          "weight": 0.004999387366436992
+        },
+        {
+          "feature": "open_black_passed_pawns",
+          "weight": -0.004497671830805834
+        },
+        {
+          "feature": "open_black_pawn_file_std",
+          "weight": 0.004242744777832812
+        },
+        {
+          "feature": "open_pawn_islands_diff",
+          "weight": 0.004112339070536405
+        },
+        {
+          "feature": "open_white_doubled_pawns",
+          "weight": -0.003816093665310856
+        }
+      ]
+    },
+    {
+      "tp": 296,
+      "tn": 175,
+      "fp": 263,
+      "fn": 224,
+      "accuracy": 0.49164926931106473,
+      "precision": 0.5295169946332737,
+      "recall": 0.5692307692307692,
+      "f1": 0.5486561631139945,
+      "rmse": 0.50174500825668,
+      "r2": -0.014424395848498417,
+      "phase": "final",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "intercept": 0.5051954477981198,
+      "coef_plot": null,
+      "top_coefficients": [
+        {
+          "feature": "final_white_doubled_pawns",
+          "weight": -0.020888819731533198
+        },
+        {
+          "feature": "final_pawns_diff",
+          "weight": 0.013186326351667967
+        },
+        {
+          "feature": "final_black_advanced_pawns",
+          "weight": 0.011097430896366469
+        },
+        {
+          "feature": "final_material_white",
+          "weight": 0.009557017121958361
+        },
+        {
+          "feature": "final_black_passed_pawns",
+          "weight": 0.008838978766344102
+        },
+        {
+          "feature": "final_white_advanced_pawns",
+          "weight": 0.008651258947268424
+        },
+        {
+          "feature": "final_black_pawn_rank_std",
+          "weight": -0.007889629904282937
+        },
+        {
+          "feature": "final_pawn_rank_std_diff",
+          "weight": 0.0078481445883255
+        },
+        {
+          "feature": "final_passed_pawns_diff",
+          "weight": -0.007763703884529123
+        },
+        {
+          "feature": "final_white_pawn_rank_span",
+          "weight": -0.007283291176751457
+        },
+        {
+          "feature": "final_white_king_pawns_near",
+          "weight": 0.00717314047584481
+        },
+        {
+          "feature": "final_white_pawn_rank_mean",
+          "weight": 0.006712428885074907
+        },
+        {
+          "feature": "final_white_pawn_file_mean",
+          "weight": -0.006649845579311969
+        },
+        {
+          "feature": "final_king_pawns_near_diff",
+          "weight": 0.006073386509701938
+        },
+        {
+          "feature": "final_black_pawns",
+          "weight": -0.005869185044247054
+        }
+      ]
+    }
+  ],
+  "logistic_regression": [
+    {
+      "tp": 520,
+      "tn": 0,
+      "fp": 438,
+      "fn": 0,
+      "accuracy": 0.5427974947807933,
+      "precision": 0.5427974947807933,
+      "recall": 1.0,
+      "f1": 0.7036535859269282,
+      "threshold": 0.3,
+      "phase": "midgame_move20",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "auc": 0.5142869687390231,
+      "coef_plot": "/home/jhonatan/Documents/analisis_de_datos_a_gran_escala/lichess_distribuido/experimentos/plots/midgame_move20_logistic_coef.png",
+      "top_coefficients": [
+        {
+          "feature": "black_pawn_file_mean",
+          "weight": -0.05264068113803315
+        },
+        {
+          "feature": "white_doubled_pawns",
+          "weight": -0.051689542554074944
+        },
+        {
+          "feature": "black_mobility",
+          "weight": 0.04327129595073688
+        },
+        {
+          "feature": "white_pawn_rank_span",
+          "weight": -0.04158748521654506
+        },
+        {
+          "feature": "white_pawn_file_mean",
+          "weight": -0.039461213981784024
+        },
+        {
+          "feature": "white_mobility",
+          "weight": 0.0345876795978277
+        },
+        {
+          "feature": "white_pawns",
+          "weight": -0.03305701543284458
+        },
+        {
+          "feature": "black_pawn_file_std",
+          "weight": 0.03257047203410178
+        },
+        {
+          "feature": "black_pawn_rank_mean",
+          "weight": -0.029325973305107948
+        },
+        {
+          "feature": "black_doubled_pawns",
+          "weight": 0.023748753525292852
+        },
+        {
+          "feature": "black_pawn_islands",
+          "weight": -0.023628282923531235
+        },
+        {
+          "feature": "black_pawns",
+          "weight": -0.021339569182660188
+        },
+        {
+          "feature": "isolated_pawns_diff",
+          "weight": -0.01962151868635651
+        },
+        {
+          "feature": "white_advanced_pawns",
+          "weight": 0.019386463138238292
+        },
+        {
+          "feature": "white_king_pawn_shield",
+          "weight": -0.019356308582768326
+        }
+      ],
+      "thresholds_scanned": [
+        {
+          "tp": 520,
+          "tn": 0,
+          "fp": 438,
+          "fn": 0,
+          "accuracy": 0.5427974947807933,
+          "precision": 0.5427974947807933,
+          "recall": 1.0,
+          "f1": 0.7036535859269282,
+          "threshold": 0.3
+        },
+        {
+          "tp": 515,
+          "tn": 2,
+          "fp": 436,
+          "fn": 5,
+          "accuracy": 0.5396659707724426,
+          "precision": 0.5415352260778128,
+          "recall": 0.9903846153846154,
+          "f1": 0.7002039428959891,
+          "threshold": 0.4
+        },
+        {
+          "tp": 225,
+          "tn": 255,
+          "fp": 183,
+          "fn": 295,
+          "accuracy": 0.5010438413361169,
+          "precision": 0.5514705882352942,
+          "recall": 0.4326923076923077,
+          "f1": 0.4849137931034483,
+          "threshold": 0.5
+        },
+        {
+          "tp": 1,
+          "tn": 437,
+          "fp": 1,
+          "fn": 519,
+          "accuracy": 0.4572025052192067,
+          "precision": 0.5,
+          "recall": 0.0019230769230769232,
+          "f1": 0.003831417624521073,
+          "threshold": 0.6
+        },
+        {
+          "tp": 0,
+          "tn": 438,
+          "fp": 0,
+          "fn": 520,
+          "accuracy": 0.4572025052192067,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "threshold": 0.7
+        }
+      ]
+    },
+    {
+      "tp": 519,
+      "tn": 1,
+      "fp": 437,
+      "fn": 1,
+      "accuracy": 0.5427974947807933,
+      "precision": 0.5428870292887029,
+      "recall": 0.9980769230769231,
+      "f1": 0.7032520325203252,
+      "threshold": 0.3,
+      "phase": "opening",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "auc": 0.500526870389884,
+      "coef_plot": "/home/jhonatan/Documents/analisis_de_datos_a_gran_escala/lichess_distribuido/experimentos/plots/opening_logistic_coef.png",
+      "top_coefficients": [
+        {
+          "feature": "open_white_pawn_file_mean",
+          "weight": -0.0637296172893343
+        },
+        {
+          "feature": "open_black_advanced_pawns",
+          "weight": 0.05177873329229139
+        },
+        {
+          "feature": "open_white_advanced_pawns",
+          "weight": 0.04822149930808557
+        },
+        {
+          "feature": "open_black_pawn_islands",
+          "weight": -0.04086089994929436
+        },
+        {
+          "feature": "open_black_pawn_file_mean",
+          "weight": -0.034038558653442956
+        },
+        {
+          "feature": "open_black_pawn_rank_span",
+          "weight": -0.031023651054988062
+        },
+        {
+          "feature": "open_white_pawn_file_span",
+          "weight": 0.028226173827934777
+        },
+        {
+          "feature": "open_white_pawn_islands",
+          "weight": -0.024867525870374243
+        },
+        {
+          "feature": "open_white_king_pawn_shield",
+          "weight": -0.02336560073554192
+        },
+        {
+          "feature": "open_white_passed_pawns",
+          "weight": -0.021235148895260184
+        },
+        {
+          "feature": "open_material_diff",
+          "weight": 0.02011847737327031
+        },
+        {
+          "feature": "open_black_passed_pawns",
+          "weight": -0.018298982591209642
+        },
+        {
+          "feature": "open_black_pawn_file_std",
+          "weight": 0.01718458236071105
+        },
+        {
+          "feature": "open_pawn_islands_diff",
+          "weight": 0.01652480379339515
+        },
+        {
+          "feature": "open_white_doubled_pawns",
+          "weight": -0.01530783631260635
+        }
+      ],
+      "thresholds_scanned": [
+        {
+          "tp": 519,
+          "tn": 1,
+          "fp": 437,
+          "fn": 1,
+          "accuracy": 0.5427974947807933,
+          "precision": 0.5428870292887029,
+          "recall": 0.9980769230769231,
+          "f1": 0.7032520325203252,
+          "threshold": 0.3
+        },
+        {
+          "tp": 516,
+          "tn": 4,
+          "fp": 434,
+          "fn": 4,
+          "accuracy": 0.5427974947807933,
+          "precision": 0.5431578947368421,
+          "recall": 0.9923076923076923,
+          "f1": 0.7020408163265306,
+          "threshold": 0.4
+        },
+        {
+          "tp": 211,
+          "tn": 263,
+          "fp": 175,
+          "fn": 309,
+          "accuracy": 0.49478079331941544,
+          "precision": 0.5466321243523317,
+          "recall": 0.40576923076923077,
+          "f1": 0.4657836644591612,
+          "threshold": 0.5
+        },
+        {
+          "tp": 0,
+          "tn": 436,
+          "fp": 2,
+          "fn": 520,
+          "accuracy": 0.4551148225469729,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "threshold": 0.6
+        },
+        {
+          "tp": 0,
+          "tn": 438,
+          "fp": 0,
+          "fn": 520,
+          "accuracy": 0.4572025052192067,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "threshold": 0.7
+        }
+      ]
+    },
+    {
+      "tp": 520,
+      "tn": 0,
+      "fp": 438,
+      "fn": 0,
+      "accuracy": 0.5427974947807933,
+      "precision": 0.5427974947807933,
+      "recall": 1.0,
+      "f1": 0.7036535859269282,
+      "threshold": 0.3,
+      "phase": "final",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "auc": 0.47886810677906544,
+      "coef_plot": "/home/jhonatan/Documents/analisis_de_datos_a_gran_escala/lichess_distribuido/experimentos/plots/final_logistic_coef.png",
+      "top_coefficients": [
+        {
+          "feature": "final_white_doubled_pawns",
+          "weight": -0.08383430231006375
+        },
+        {
+          "feature": "final_pawns_diff",
+          "weight": 0.05268197597176739
+        },
+        {
+          "feature": "final_black_advanced_pawns",
+          "weight": 0.0446962595956666
+        },
+        {
+          "feature": "final_material_white",
+          "weight": 0.03837578411733864
+        },
+        {
+          "feature": "final_black_passed_pawns",
+          "weight": 0.03545486861046706
+        },
+        {
+          "feature": "final_white_advanced_pawns",
+          "weight": 0.03476885165754781
+        },
+        {
+          "feature": "final_black_pawn_rank_std",
+          "weight": -0.03166557133200665
+        },
+        {
+          "feature": "final_pawn_rank_std_diff",
+          "weight": 0.03150425920658105
+        },
+        {
+          "feature": "final_passed_pawns_diff",
+          "weight": -0.031080372268648276
+        },
+        {
+          "feature": "final_white_pawn_rank_span",
+          "weight": -0.02912109353799663
+        },
+        {
+          "feature": "final_white_king_pawns_near",
+          "weight": 0.028765895221236782
+        },
+        {
+          "feature": "final_white_pawn_rank_mean",
+          "weight": 0.027072634884007296
+        },
+        {
+          "feature": "final_white_pawn_file_mean",
+          "weight": -0.026687402973340088
+        },
+        {
+          "feature": "final_king_pawns_near_diff",
+          "weight": 0.02436986884155457
+        },
+        {
+          "feature": "final_black_pawns",
+          "weight": -0.02352502318752986
+        }
+      ],
+      "thresholds_scanned": [
+        {
+          "tp": 520,
+          "tn": 0,
+          "fp": 438,
+          "fn": 0,
+          "accuracy": 0.5427974947807933,
+          "precision": 0.5427974947807933,
+          "recall": 1.0,
+          "f1": 0.7036535859269282,
+          "threshold": 0.3
+        },
+        {
+          "tp": 516,
+          "tn": 4,
+          "fp": 434,
+          "fn": 4,
+          "accuracy": 0.5427974947807933,
+          "precision": 0.5431578947368421,
+          "recall": 0.9923076923076923,
+          "f1": 0.7020408163265306,
+          "threshold": 0.4
+        },
+        {
+          "tp": 208,
+          "tn": 242,
+          "fp": 196,
+          "fn": 312,
+          "accuracy": 0.4697286012526096,
+          "precision": 0.5148514851485149,
+          "recall": 0.4,
+          "f1": 0.45021645021645024,
+          "threshold": 0.5
+        },
+        {
+          "tp": 0,
+          "tn": 437,
+          "fp": 1,
+          "fn": 520,
+          "accuracy": 0.4561586638830898,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "threshold": 0.6
+        },
+        {
+          "tp": 0,
+          "tn": 438,
+          "fp": 0,
+          "fn": 520,
+          "accuracy": 0.4572025052192067,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "threshold": 0.7
+        }
+      ]
+    }
+  ],
+  "random_forest": [
+    {
+      "tp": 520,
+      "tn": 0,
+      "fp": 438,
+      "fn": 0,
+      "accuracy": 0.5427974947807933,
+      "precision": 0.5427974947807933,
+      "recall": 1.0,
+      "f1": 0.7036535859269282,
+      "threshold": 0.3,
+      "phase": "midgame_move20",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "auc": 0.4958816297857393,
+      "importances_plot": "/home/jhonatan/Documents/analisis_de_datos_a_gran_escala/lichess_distribuido/experimentos/plots/midgame_move20_rf_importances.png",
+      "thresholds_scanned": [
+        {
+          "tp": 520,
+          "tn": 0,
+          "fp": 438,
+          "fn": 0,
+          "accuracy": 0.5427974947807933,
+          "precision": 0.5427974947807933,
+          "recall": 1.0,
+          "f1": 0.7036535859269282,
+          "threshold": 0.3
+        },
+        {
+          "tp": 511,
+          "tn": 5,
+          "fp": 433,
+          "fn": 9,
+          "accuracy": 0.5386221294363257,
+          "precision": 0.5413135593220338,
+          "recall": 0.9826923076923076,
+          "f1": 0.698087431693989,
+          "threshold": 0.4
+        },
+        {
+          "tp": 211,
+          "tn": 254,
+          "fp": 184,
+          "fn": 309,
+          "accuracy": 0.48538622129436326,
+          "precision": 0.5341772151898734,
+          "recall": 0.40576923076923077,
+          "f1": 0.46120218579234973,
+          "threshold": 0.5
+        },
+        {
+          "tp": 9,
+          "tn": 434,
+          "fp": 4,
+          "fn": 511,
+          "accuracy": 0.46242171189979125,
+          "precision": 0.6923076923076923,
+          "recall": 0.01730769230769231,
+          "f1": 0.03377110694183865,
+          "threshold": 0.6
+        },
+        {
+          "tp": 0,
+          "tn": 438,
+          "fp": 0,
+          "fn": 520,
+          "accuracy": 0.4572025052192067,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "threshold": 0.7
+        }
+      ],
+      "top_importances": [
+        {
+          "feature": "black_mobility",
+          "importance": 0.04990997189671287
+        },
+        {
+          "feature": "pawn_rank_std_diff",
+          "importance": 0.04665245177439271
+        },
+        {
+          "feature": "white_pawn_file_mean",
+          "importance": 0.04425540878656894
+        },
+        {
+          "feature": "material_white",
+          "importance": 0.04355653845160114
+        },
+        {
+          "feature": "black_pawn_rank_std",
+          "importance": 0.04166991162669224
+        },
+        {
+          "feature": "material_black",
+          "importance": 0.041542635495482025
+        },
+        {
+          "feature": "mobility_diff",
+          "importance": 0.04063649521455649
+        },
+        {
+          "feature": "white_mobility",
+          "importance": 0.04058190185394172
+        },
+        {
+          "feature": "pawn_file_std_diff",
+          "importance": 0.03954463882944666
+        },
+        {
+          "feature": "white_pawn_rank_mean",
+          "importance": 0.03849616650931017
+        },
+        {
+          "feature": "black_pawn_file_std",
+          "importance": 0.038168963944393924
+        },
+        {
+          "feature": "black_pawn_file_mean",
+          "importance": 0.037321974154078445
+        },
+        {
+          "feature": "white_pawn_rank_std",
+          "importance": 0.03669576127845022
+        },
+        {
+          "feature": "material_diff",
+          "importance": 0.03583848369556135
+        },
+        {
+          "feature": "black_pawn_rank_mean",
+          "importance": 0.03254205303323942
+        }
+      ]
+    },
+    {
+      "tp": 520,
+      "tn": 0,
+      "fp": 438,
+      "fn": 0,
+      "accuracy": 0.5427974947807933,
+      "precision": 0.5427974947807933,
+      "recall": 1.0,
+      "f1": 0.7036535859269282,
+      "threshold": 0.3,
+      "phase": "opening",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "auc": 0.5184580259922722,
+      "importances_plot": null,
+      "thresholds_scanned": [
+        {
+          "tp": 520,
+          "tn": 0,
+          "fp": 438,
+          "fn": 0,
+          "accuracy": 0.5427974947807933,
+          "precision": 0.5427974947807933,
+          "recall": 1.0,
+          "f1": 0.7036535859269282,
+          "threshold": 0.3
+        },
+        {
+          "tp": 505,
+          "tn": 9,
+          "fp": 429,
+          "fn": 15,
+          "accuracy": 0.5365344467640919,
+          "precision": 0.5406852248394004,
+          "recall": 0.9711538461538461,
+          "f1": 0.6946354883081155,
+          "threshold": 0.4
+        },
+        {
+          "tp": 213,
+          "tn": 265,
+          "fp": 173,
+          "fn": 307,
+          "accuracy": 0.4989561586638831,
+          "precision": 0.5518134715025906,
+          "recall": 0.4096153846153846,
+          "f1": 0.4701986754966887,
+          "threshold": 0.5
+        },
+        {
+          "tp": 14,
+          "tn": 424,
+          "fp": 14,
+          "fn": 506,
+          "accuracy": 0.4572025052192067,
+          "precision": 0.5,
+          "recall": 0.026923076923076925,
+          "f1": 0.051094890510948905,
+          "threshold": 0.6
+        },
+        {
+          "tp": 0,
+          "tn": 438,
+          "fp": 0,
+          "fn": 520,
+          "accuracy": 0.4572025052192067,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "threshold": 0.7
+        }
+      ],
+      "top_importances": [
+        {
+          "feature": "open_white_mobility",
+          "importance": 0.05813574814210462
+        },
+        {
+          "feature": "open_material_white",
+          "importance": 0.049038741464996254
+        },
+        {
+          "feature": "open_mobility_diff",
+          "importance": 0.04852196614049518
+        },
+        {
+          "feature": "open_white_pawn_file_mean",
+          "importance": 0.046092567455179013
+        },
+        {
+          "feature": "open_black_mobility",
+          "importance": 0.04545379582281101
+        },
+        {
+          "feature": "open_black_pawn_file_mean",
+          "importance": 0.04496095984463055
+        },
+        {
+          "feature": "open_material_diff",
+          "importance": 0.04476524877662777
+        },
+        {
+          "feature": "open_pawn_rank_std_diff",
+          "importance": 0.044537074371995916
+        },
+        {
+          "feature": "open_white_pawn_rank_std",
+          "importance": 0.04240336700162438
+        },
+        {
+          "feature": "open_black_pawn_rank_std",
+          "importance": 0.040609755245428626
+        },
+        {
+          "feature": "open_white_pawn_rank_mean",
+          "importance": 0.039793410482807
+        },
+        {
+          "feature": "open_black_pawn_rank_mean",
+          "importance": 0.03668459686778969
+        },
+        {
+          "feature": "open_material_black",
+          "importance": 0.03614731897854633
+        },
+        {
+          "feature": "open_pawn_file_std_diff",
+          "importance": 0.036018746244348206
+        },
+        {
+          "feature": "open_black_pawn_file_std",
+          "importance": 0.031595266724905965
+        }
+      ]
+    },
+    {
+      "tp": 520,
+      "tn": 0,
+      "fp": 438,
+      "fn": 0,
+      "accuracy": 0.5427974947807933,
+      "precision": 0.5427974947807933,
+      "recall": 1.0,
+      "f1": 0.7036535859269282,
+      "threshold": 0.3,
+      "phase": "final",
+      "rows": 5000,
+      "train_rows": 4042,
+      "test_rows": 958,
+      "auc": 0.49775860554970147,
+      "importances_plot": null,
+      "thresholds_scanned": [
+        {
+          "tp": 520,
+          "tn": 0,
+          "fp": 438,
+          "fn": 0,
+          "accuracy": 0.5427974947807933,
+          "precision": 0.5427974947807933,
+          "recall": 1.0,
+          "f1": 0.7036535859269282,
+          "threshold": 0.3
+        },
+        {
+          "tp": 512,
+          "tn": 7,
+          "fp": 431,
+          "fn": 8,
+          "accuracy": 0.5417536534446764,
+          "precision": 0.542948038176034,
+          "recall": 0.9846153846153847,
+          "f1": 0.6999316473000684,
+          "threshold": 0.4
+        },
+        {
+          "tp": 215,
+          "tn": 261,
+          "fp": 177,
+          "fn": 305,
+          "accuracy": 0.4968684759916493,
+          "precision": 0.548469387755102,
+          "recall": 0.41346153846153844,
+          "f1": 0.4714912280701754,
+          "threshold": 0.5
+        },
+        {
+          "tp": 8,
+          "tn": 432,
+          "fp": 6,
+          "fn": 512,
+          "accuracy": 0.4592901878914405,
+          "precision": 0.5714285714285714,
+          "recall": 0.015384615384615385,
+          "f1": 0.029962546816479405,
+          "threshold": 0.6
+        },
+        {
+          "tp": 0,
+          "tn": 438,
+          "fp": 0,
+          "fn": 520,
+          "accuracy": 0.4572025052192067,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "threshold": 0.7
+        }
+      ],
+      "top_importances": [
+        {
+          "feature": "final_material_diff",
+          "importance": 0.04758670433161535
+        },
+        {
+          "feature": "final_white_mobility",
+          "importance": 0.04368437907365116
+        },
+        {
+          "feature": "final_material_black",
+          "importance": 0.0426047768480326
+        },
+        {
+          "feature": "final_material_white",
+          "importance": 0.04144579709127001
+        },
+        {
+          "feature": "final_black_pawn_file_mean",
+          "importance": 0.04119950222972745
+        },
+        {
+          "feature": "final_black_pawn_rank_mean",
+          "importance": 0.040550024979590725
+        },
+        {
+          "feature": "final_black_pawn_file_std",
+          "importance": 0.04042981060976977
+        },
+        {
+          "feature": "final_white_pawn_file_mean",
+          "importance": 0.03929628875158121
+        },
+        {
+          "feature": "final_black_mobility",
+          "importance": 0.03788956782882605
+        },
+        {
+          "feature": "final_white_pawn_rank_mean",
+          "importance": 0.03698781590623992
+        },
+        {
+          "feature": "final_white_pawn_rank_std",
+          "importance": 0.03550831712245721
+        },
+        {
+          "feature": "final_mobility_diff",
+          "importance": 0.03536968755482741
+        },
+        {
+          "feature": "final_pawn_rank_std_diff",
+          "importance": 0.03484818479749664
+        },
+        {
+          "feature": "final_white_pawn_file_std",
+          "importance": 0.03352973701874046
+        },
+        {
+          "feature": "final_black_pawn_rank_std",
+          "importance": 0.030779342080896926
+        }
+      ]
+    }
+  ]
+}
