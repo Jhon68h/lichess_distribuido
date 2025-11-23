@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-Entrenamiento y evaluación de modelos Spark ML para predecir si ganan blancas:
-- Regresión lineal (como regresor + umbral)
-- Regresión logística
-- Random Forest
+Entrenamiento y evaluación de modelos para predecir si ganan blancas:
+- Regresión lineal (baseline Spark)
+- Bosque Aleatorio (Spark) con umbral calibrado en validación
+- HistGradientBoosting (scikit-learn) con umbral calibrado en validación
 
 Incluye balanceo de clases, búsqueda de umbral y generación de gráficas.
 """
@@ -15,6 +15,7 @@ from typing import Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from pyspark.ml import Pipeline
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.ml.evaluation import BinaryClassificationEvaluator, RegressionEvaluator
@@ -22,6 +23,15 @@ from pyspark.ml.feature import StandardScaler, VectorAssembler
 from pyspark.ml.functions import vector_to_array
 from pyspark.ml.regression import LinearRegression
 from pyspark.sql import DataFrame, functions as F
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.model_selection import train_test_split
 
 
 def _prepare_phase_df(df: DataFrame, feature_cols: Iterable[str]) -> DataFrame:
@@ -50,6 +60,29 @@ def _add_class_weights(df: DataFrame, label_col: str = "label_white_win"):
         "class_weight",
         F.when(F.col(label_col) == 1, F.lit(float(weight_pos))).otherwise(F.lit(1.0)),
     )
+
+
+def _split_pd_dataset(df_pd: pd.DataFrame, label_col: str, feature_cols: list[str]):
+    """
+    Split train/val/test (60/20/20) con pesos balanceados.
+    """
+    X = df_pd[feature_cols].astype(float)
+    y = df_pd[label_col].astype(int)
+
+    pos = (y == 1).sum()
+    neg = (y == 0).sum()
+    pos_weight = neg / pos if pos > 0 else 1.0
+    sample_weight = np.where(y == 1, pos_weight, 1.0).astype(float)
+
+    X_temp, X_test, y_temp, y_test, w_temp, w_test = train_test_split(
+        X, y, sample_weight, test_size=0.2, random_state=42, stratify=y
+    )
+
+    X_train, X_val, y_train, y_val, w_train, w_val = train_test_split(
+        X_temp, y_temp, w_temp, test_size=0.25, random_state=42, stratify=y_temp
+    )
+
+    return X_train, X_val, X_test, y_train, y_val, y_test, w_train, w_val, w_test
 
 
 def _classification_metrics(pred_df: DataFrame) -> dict:
@@ -295,103 +328,105 @@ def train_linear_phase(
     return metrics
 
 
-def train_logistic_phase(
+def train_hgb_phase(
     df: DataFrame,
     feature_cols: list[str],
     phase_name: str,
     plots_dir: Path,
-    thresholds: list[float] | None = None,
-    plot: bool = False,
+    plot: bool = True,
     phase_label: str | None = None,
 ) -> dict:
     """
-    Entrena regresión logística con balance de clases y búsqueda de umbral.
-    Devuelve métricas (AUC, F1, accuracy, etc.) y gráfico de coeficientes.
+    Entrena HistGradientBoosting (sklearn) con split train/val/test y umbral calibrado en validación.
     """
-    thresholds = thresholds or [0.3, 0.4, 0.5, 0.6, 0.7]
-
     df_phase = _prepare_phase_df(df, feature_cols)
     n_rows = df_phase.count()
     if n_rows == 0:
         return {"phase": phase_name, "rows": 0, "error": "sin filas válidas"}
 
-    df_phase = _add_class_weights(df_phase)
+    df_pd = df_phase.select(["label_white_win"] + feature_cols).dropna().toPandas()
+    if df_pd.empty:
+        return {"phase": phase_name, "rows": 0, "error": "sin datos tras dropna"}
 
-    train_df, test_df = df_phase.randomSplit([0.8, 0.2], seed=42)
-    if train_df.count() == 0 or test_df.count() == 0:
-        return {"phase": phase_name, "rows": n_rows, "error": "train/test vacíos"}
+    (
+        X_train,
+        X_val,
+        X_test,
+        y_train,
+        y_val,
+        y_test,
+        w_train,
+        w_val,
+        w_test,
+    ) = _split_pd_dataset(df_pd, "label_white_win", feature_cols)
 
-    assembler = VectorAssembler(inputCols=feature_cols, outputCol="features_raw")
-    scaler = StandardScaler(
-        inputCol="features_raw",
-        outputCol="features",
-        withStd=True,
-        withMean=True,
+    clf = HistGradientBoostingClassifier(
+        random_state=42,
+        max_depth=6,
+        learning_rate=0.1,
+        max_iter=300,
     )
-    lr = SparkLogisticRegression(
-        featuresCol="features",
-        labelCol="label_white_win",
-        weightCol="class_weight",
-        maxIter=200,
-        regParam=0.05,
-        elasticNetParam=0.0,
-    )
+    clf.fit(X_train, y_train, sample_weight=w_train)
 
-    pipeline = Pipeline(stages=[assembler, scaler, lr])
-    model = pipeline.fit(train_df)
+    thresholds = [0.3, 0.4, 0.5, 0.6, 0.7]
+    proba_val = clf.predict_proba(X_val)[:, 1]
+    scan = []
+    best_th = 0.5
+    best_f1 = -1.0
+    for th in thresholds:
+        preds_val = (proba_val >= th).astype(int)
+        f1_val = f1_score(y_val, preds_val, zero_division=0)
+        scan.append({"threshold": th, "f1": float(f1_val)})
+        if f1_val > best_f1:
+            best_f1 = f1_val
+            best_th = th
 
-    preds = model.transform(test_df)
-    preds = preds.withColumn("prob1", vector_to_array(F.col("probability")).getItem(1))
+    proba_test = clf.predict_proba(X_test)[:, 1]
+    y_pred = (proba_test >= best_th).astype(int)
 
-    # AUC base
-    evaluator = BinaryClassificationEvaluator(
-        labelCol="label_white_win",
-        rawPredictionCol="rawPrediction",
-        metricName="areaUnderROC",
-    )
-    auc = evaluator.evaluate(preds)
+    metrics = {
+        "phase": phase_name,
+        "phase_label": phase_label or phase_name,
+        "rows": int(n_rows),
+        "train_rows": int(len(y_train)),
+        "val_rows": int(len(y_val)),
+        "test_rows": int(len(y_test)),
+        "threshold": best_th,
+        "accuracy": float(accuracy_score(y_test, y_pred)),
+        "precision": float(precision_score(y_test, y_pred, zero_division=0)),
+        "recall": float(recall_score(y_test, y_pred, zero_division=0)),
+        "f1": float(f1_score(y_test, y_pred, zero_division=0)),
+        "thresholds_scanned": scan,
+    }
 
-    best_metrics_raw, all_thresholds = _evaluate_thresholds(preds, thresholds)
-    if best_metrics_raw is None:
-        return {"phase": phase_name, "rows": n_rows, "error": "sin métricas"}
-    # Copias para evitar referencias circulares
-    best_metrics = dict(best_metrics_raw)
-    thresholds_list = [dict(m) for m in all_thresholds]
+    try:
+        metrics["auc"] = float(roc_auc_score(y_test, proba_test))
+    except Exception:
+        metrics["auc"] = None
 
-    # Graficar coeficientes
-    weights = model.stages[-1].coefficients.toArray().tolist()
-    coef_plot_path = None
-    if plot:
-        coef_plot_path = plots_dir / f"{phase_name}_logistic_coef.png"
+    importances = getattr(clf, "feature_importances_", None)
+    if plot and importances is not None:
+        imp_plot_path = plots_dir / f"{phase_name}_hgb_importancias.png"
         title = phase_label or phase_name
-        _plot_coefficients(
+        _plot_feature_importances(
             feature_cols,
-            weights,
-            f"{title}: coeficientes logística",
-            coef_plot_path,
+            importances.tolist(),
+            f"{title}: importancias (HGB)",
+            imp_plot_path,
         )
+        metrics["importances_plot"] = str(imp_plot_path)
+        pairs = sorted(
+            zip(feature_cols, importances.tolist()),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:15]
+        metrics["top_importances"] = [
+            {"feature": n, "importance": float(v)} for n, v in pairs
+        ]
+    else:
+        metrics["importances_plot"] = None
 
-    coef_sorted = sorted(
-        zip(feature_cols, weights),
-        key=lambda x: abs(x[1]),
-        reverse=True,
-    )
-
-    best_metrics.update(
-        {
-            "phase": phase_name,
-            "rows": n_rows,
-            "train_rows": train_df.count(),
-            "test_rows": test_df.count(),
-            "auc": auc,
-            "coef_plot": str(coef_plot_path) if coef_plot_path else None,
-            "top_coefficients": [
-                {"feature": n, "weight": w} for n, w in coef_sorted[:15]
-            ],
-            "thresholds_scanned": thresholds_list,
-        }
-    )
-    return best_metrics
+    return metrics
 
 
 def train_random_forest_phase(

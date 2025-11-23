@@ -5,7 +5,7 @@
 Ejecución local de todo el flujo:
 1) Carga de CSVs de Lichess.
 2) Construcción de FEN en apertura/medio juego/final + features de peones y movilidad.
-3) Entrenamiento de modelos (regresión lineal, logística y RandomForest) con balance y calibración de umbral.
+3) Entrenamiento de modelos (regresión lineal baseline, HistGradientBoosting y RandomForest) con balance y calibración de umbral.
 4) Guardado de métricas, gráficas y dataset enriquecido.
 """
 
@@ -23,7 +23,7 @@ from chess_spark_pipeline import (
 )
 from model_training import (
     train_linear_phase,
-    train_logistic_phase,
+    train_hgb_phase,
     train_random_forest_phase,
 )
 
@@ -94,7 +94,7 @@ def main():
     ]
 
     linear_metrics = []
-    logreg_metrics = []
+    hgb_metrics = []
     rf_metrics = []
     for phase_name, phase_label, feature_cols in phase_configs:
         print(f"\n>>> Entrenando modelo de regresión lineal para {phase_name}...")
@@ -115,8 +115,8 @@ def main():
                 f"prec={res_lin['precision']:.3f}, rec={res_lin['recall']:.3f}, rmse={res_lin['rmse']:.3f}"
             )
 
-        print(f">>> Entrenando regresión logística para {phase_name}...")
-        res_log = train_logistic_phase(
+        print(f">>> Entrenando HistGradientBoosting para {phase_name}...")
+        res_log = train_hgb_phase(
             df_feat,
             feature_cols,
             phase_name,
@@ -124,14 +124,14 @@ def main():
             plot=True,
             phase_label=phase_label,
         )
-        logreg_metrics.append(res_log)
+        hgb_metrics.append(res_log)
         if "error" in res_log:
-            print(f"[{phase_name}] LOGREG ERROR: {res_log['error']}")
+            print(f"[{phase_name}] HGB ERROR: {res_log['error']}")
         else:
             print(
-                f"[{phase_name}] LogReg auc={res_log['auc']:.3f}, "
+                f"[{phase_name}] HGB auc={res_log.get('auc')}, "
                 f"f1={res_log['f1']:.3f}, acc={res_log['accuracy']:.3f}, "
-                f"umbral={res_log['threshold']:.2f}"
+                f"umbral={res_log.get('threshold')}"
             )
 
         print(f">>> Entrenando Random Forest para {phase_name}...")
@@ -162,7 +162,7 @@ def main():
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "dataset_rows": total_rows,
                 "linear_regression": linear_metrics,
-                "logistic_regression": logreg_metrics,
+                "hist_gradient_boosting": hgb_metrics,
                 "random_forest": rf_metrics,
             },
             fh,
@@ -173,7 +173,7 @@ def main():
 
     # -------- Gráfica resumen (1 de 5) --------
     def plot_metric_bar(results, model_name, metric_key, fname):
-        labels = [r["phase"] for r in results if "error" not in r]
+        labels = [r.get("phase_label", r["phase"]) for r in results if "error" not in r]
         values = [r.get(metric_key) for r in results if "error" not in r]
         plt.figure(figsize=(6, 3))
         plt.bar(labels, values, color="#2563eb")
@@ -188,19 +188,19 @@ def main():
         return out
 
     bar_path = plot_metric_bar(
-        logreg_metrics, "Regresión logística", "f1", "resumen_logreg_f1.png"
+        hgb_metrics, "HistGradientBoosting", "accuracy", "resumen_hgb_acc.png"
     )
-    print(f">>> Resumen F1 LogReg: {bar_path}")
+    print(f">>> Resumen Accuracy HGB: {bar_path}")
 
     # Conservar solo 5 gráficas en total:
-    # 1) summary_logreg_f1.png (arriba)
-    # 2-4) coeficientes logística (3 fases)
+    # 1) resumen_hgb_acc.png (arriba)
+    # 2-4) importancias HGB (3 fases)
     # 5) RF importancias para midgame (si se generó)
     kept_plots = {bar_path}
 
-    for r in logreg_metrics:
-        if r.get("coef_plot"):
-            kept_plots.add(Path(r["coef_plot"]))
+    for r in hgb_metrics:
+        if r.get("importances_plot"):
+            kept_plots.add(Path(r["importances_plot"]))
     for r in rf_metrics:
         if r.get("importances_plot") and "midgame_move20" in r.get("phase", ""):
             kept_plots.add(Path(r["importances_plot"]))

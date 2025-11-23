@@ -14,7 +14,7 @@ Pipeline local con PySpark para extraer features posicionales desde FEN/PGN de L
 - Construye FEN tras apertura, jugada 20 (midgame) y final.
 - Calcula features de peones/rey/material y movilidad de piezas para las tres fases.
 - Limpia FEN inválidos y balancea clases.
-- Entrena tres modelos por fase: regresión lineal, regresión logística (con umbral óptimo) y RandomForest (con umbral óptimo); compara AUC/F1/accuracy.
+- Entrena tres modelos por fase: regresión lineal, HistGradientBoosting (umbral calibrado) y RandomForest (umbral calibrado); compara accuracy/F1/AUC.
 - Guarda:
   - Dataset parquet: `experimentos/Lichess_2013_2014_features_full.parquet`
   - Métricas JSON combinadas: `experimentos/model_metrics.json`
