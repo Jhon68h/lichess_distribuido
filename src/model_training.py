@@ -16,14 +16,8 @@ from typing import Iterable
 import matplotlib.pyplot as plt
 import numpy as np
 from pyspark.ml import Pipeline
-from pyspark.ml.classification import (
-    LogisticRegression as SparkLogisticRegression,
-    RandomForestClassifier,
-)
-from pyspark.ml.evaluation import (
-    BinaryClassificationEvaluator,
-    RegressionEvaluator,
-)
+from pyspark.ml.classification import RandomForestClassifier
+from pyspark.ml.evaluation import BinaryClassificationEvaluator, RegressionEvaluator
 from pyspark.ml.feature import StandardScaler, VectorAssembler
 from pyspark.ml.functions import vector_to_array
 from pyspark.ml.regression import LinearRegression
@@ -99,6 +93,7 @@ def _plot_coefficients(feature_names, weights, title: str, output_path: Path):
     bars = plt.bar(range(len(vals)), vals, color="#3b82f6")
     plt.xticks(range(len(vals)), names, rotation=45, ha="right")
     plt.title(title)
+    plt.ylabel("Peso del coeficiente")
     plt.axhline(0, color="black", linewidth=0.8)
     plt.tight_layout()
 
@@ -155,6 +150,7 @@ def _plot_feature_importances(feature_names, importances, title: str, output_pat
     bars = plt.bar(range(len(vals)), vals, color="#10b981")
     plt.xticks(range(len(vals)), names, rotation=45, ha="right")
     plt.title(title)
+    plt.ylabel("Importancia")
     plt.tight_layout()
 
     for bar, val in zip(bars, vals):
@@ -201,6 +197,7 @@ def train_linear_phase(
     phase_name: str,
     plots_dir: Path,
     plot: bool = False,
+    phase_label: str | None = None,
 ) -> dict:
     """
     Entrena regresión lineal para una fase concreta y devuelve métricas + coeficientes.
@@ -271,7 +268,8 @@ def train_linear_phase(
     coef_plot_path = None
     if plot:
         coef_plot_path = plots_dir / f"{phase_name}_coeficientes.png"
-        _plot_coefficients(feature_cols, weights, f"{phase_name}: pesos", coef_plot_path)
+        title = phase_label or phase_name
+        _plot_coefficients(feature_cols, weights, f"{title}: coeficientes", coef_plot_path)
 
     metrics.update(
         {
@@ -304,6 +302,7 @@ def train_logistic_phase(
     plots_dir: Path,
     thresholds: list[float] | None = None,
     plot: bool = False,
+    phase_label: str | None = None,
 ) -> dict:
     """
     Entrena regresión logística con balance de clases y búsqueda de umbral.
@@ -364,7 +363,13 @@ def train_logistic_phase(
     coef_plot_path = None
     if plot:
         coef_plot_path = plots_dir / f"{phase_name}_logistic_coef.png"
-        _plot_coefficients(feature_cols, weights, f"{phase_name}: pesos logística", coef_plot_path)
+        title = phase_label or phase_name
+        _plot_coefficients(
+            feature_cols,
+            weights,
+            f"{title}: coeficientes logística",
+            coef_plot_path,
+        )
 
     coef_sorted = sorted(
         zip(feature_cols, weights),
@@ -396,6 +401,7 @@ def train_random_forest_phase(
     plots_dir: Path,
     thresholds: list[float] | None = None,
     plot: bool = False,
+    phase_label: str | None = None,
 ) -> dict:
     """
     Entrena un RandomForestClassifier con balance de clases y búsqueda de umbral.
@@ -451,7 +457,13 @@ def train_random_forest_phase(
     imp_plot_path = None
     if plot:
         imp_plot_path = plots_dir / f"{phase_name}_rf_importances.png"
-        _plot_feature_importances(feature_cols, importances, f"{phase_name}: RF importancias", imp_plot_path)
+        title = phase_label or phase_name
+        _plot_feature_importances(
+            feature_cols,
+            importances,
+            f"{title}: importancias (Bosque Aleatorio)",
+            imp_plot_path,
+        )
 
     best_metrics.update(
         {

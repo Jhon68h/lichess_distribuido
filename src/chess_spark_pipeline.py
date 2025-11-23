@@ -188,6 +188,8 @@ def build_base_dataset(
     pgn_path: str,
     pgn_col_name: str = "FEN",
     sample_size: int | None = None,
+    shuffle: bool = True,
+    shuffle_seed: int = 42,
 ):
     """
     Construye el dataset base combinando:
@@ -211,11 +213,11 @@ def build_base_dataset(
         .csv(complete_path)
     )
 
-    pgn_df = (
-        spark.read
-        .option("header", True)
-        .csv(pgn_path)
-    )
+    pgn_df = spark.read.option("header", True).csv(pgn_path)
+
+    # Solo tomar la primera columna del CSV PGN/FEN (el resto se ignora)
+    pgn_first_col = pgn_df.columns[0] if pgn_df.columns else pgn_col_name
+    pgn_df = pgn_df.select(pgn_first_col)
 
     # Alineamos por fila usando un índice artificial
     complete_df = add_row_index(complete_df, index_col="row_id")
@@ -224,7 +226,7 @@ def build_base_dataset(
     # Solo usamos la columna con los movimientos, ignorando Site u otras
     pgn_df = pgn_df.select(
         "row_id",
-        F.col(pgn_col_name).alias("PGN"),
+        F.col(pgn_first_col).alias("PGN"),
     )
 
     df = (
@@ -243,6 +245,10 @@ def build_base_dataset(
     # Muestreo opcional por límite de filas
     if sample_size is not None:
         df = df.limit(sample_size)
+
+    # Mezclar filas para mayor variabilidad
+    if shuffle:
+        df = df.orderBy(F.rand(shuffle_seed))
 
     # Etiqueta de ganador (blancas ganan vs. resto)
     df = df.withColumn(

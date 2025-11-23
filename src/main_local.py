@@ -53,6 +53,8 @@ def main():
         pgn_path=str(pgn_path),
         pgn_col_name="FEN",
         sample_size=sample_size,
+        shuffle=True,
+        shuffle_seed=42,
     )
 
     print(">>> Añadiendo features posicionales para apertura/medio/final...")
@@ -86,17 +88,24 @@ def main():
 
     # Entrenamiento por fase
     phase_configs = [
-        ("midgame_move20", FEATURE_KEYS),
-        ("opening", [f"open_{k}" for k in FEATURE_KEYS]),
-        ("final", [f"final_{k}" for k in FEATURE_KEYS]),
+        ("midgame_move20", "Medio juego (jugada 20)", FEATURE_KEYS),
+        ("opening", "Apertura", [f"open_{k}" for k in FEATURE_KEYS]),
+        ("final", "Final", [f"final_{k}" for k in FEATURE_KEYS]),
     ]
 
     linear_metrics = []
     logreg_metrics = []
     rf_metrics = []
-    for phase_name, feature_cols in phase_configs:
+    for phase_name, phase_label, feature_cols in phase_configs:
         print(f"\n>>> Entrenando modelo de regresión lineal para {phase_name}...")
-        res_lin = train_linear_phase(df_feat, feature_cols, phase_name, plots_dir, plot=False)
+        res_lin = train_linear_phase(
+            df_feat,
+            feature_cols,
+            phase_name,
+            plots_dir,
+            plot=False,
+            phase_label=phase_label,
+        )
         linear_metrics.append(res_lin)
         if "error" in res_lin:
             print(f"[{phase_name}] LINEAR ERROR: {res_lin['error']}")
@@ -107,7 +116,14 @@ def main():
             )
 
         print(f">>> Entrenando regresión logística para {phase_name}...")
-        res_log = train_logistic_phase(df_feat, feature_cols, phase_name, plots_dir, plot=True)
+        res_log = train_logistic_phase(
+            df_feat,
+            feature_cols,
+            phase_name,
+            plots_dir,
+            plot=True,
+            phase_label=phase_label,
+        )
         logreg_metrics.append(res_log)
         if "error" in res_log:
             print(f"[{phase_name}] LOGREG ERROR: {res_log['error']}")
@@ -121,7 +137,14 @@ def main():
         print(f">>> Entrenando Random Forest para {phase_name}...")
         # Solo graficamos importancias para midgame para limitar a 5 gráficas totales
         plot_rf = phase_name == "midgame_move20"
-        res_rf = train_random_forest_phase(df_feat, feature_cols, phase_name, plots_dir, plot=plot_rf)
+        res_rf = train_random_forest_phase(
+            df_feat,
+            feature_cols,
+            phase_name,
+            plots_dir,
+            plot=plot_rf,
+            phase_label=phase_label,
+        )
         rf_metrics.append(res_rf)
         if "error" in res_rf:
             print(f"[{phase_name}] RF ERROR: {res_rf['error']}")
@@ -155,6 +178,8 @@ def main():
         plt.figure(figsize=(6, 3))
         plt.bar(labels, values, color="#2563eb")
         plt.title(f"{model_name} - {metric_key.upper()}")
+        plt.xlabel("Fase")
+        plt.ylabel(metric_key.upper())
         plt.ylim(0, 1)
         plt.tight_layout()
         out = plots_dir / fname
@@ -162,7 +187,9 @@ def main():
         plt.close()
         return out
 
-    bar_path = plot_metric_bar(logreg_metrics, "LogReg", "f1", "summary_logreg_f1.png")
+    bar_path = plot_metric_bar(
+        logreg_metrics, "Regresión logística", "f1", "resumen_logreg_f1.png"
+    )
     print(f">>> Resumen F1 LogReg: {bar_path}")
 
     # Conservar solo 5 gráficas en total:
