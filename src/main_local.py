@@ -12,6 +12,7 @@ Ejecución local de todo el flujo:
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 from pyspark.sql import functions as F
 
@@ -135,8 +136,7 @@ def main():
             )
 
         print(f">>> Entrenando Random Forest para {phase_name}...")
-        # Solo graficamos importancias para midgame para limitar a 5 gráficas totales
-        plot_rf = phase_name == "midgame_move20"
+        plot_rf = True
         res_rf = train_random_forest_phase(
             df_feat,
             feature_cols,
@@ -192,23 +192,45 @@ def main():
     )
     print(f">>> Resumen Accuracy HGB: {bar_path}")
 
-    # Conservar solo 5 gráficas en total:
-    # 1) resumen_hgb_acc.png (arriba)
-    # 2-4) importancias HGB (3 fases)
-    # 5) RF importancias para midgame (si se generó)
-    kept_plots = {bar_path}
+    def plot_pawn_feature_effects(df):
+        # Medias por resultado para features de peones clave en midgame
+        pawn_feats = [
+            "pawns_diff",
+            "passed_pawns_diff",
+            "isolated_pawns_diff",
+            "pawn_file_std_diff",
+            "pawn_rank_std_diff",
+            "king_pawn_shield_diff",
+        ]
+        summary = (
+            df.select(["label_white_win"] + pawn_feats)
+            .groupBy("label_white_win")
+            .agg(*[F.avg(c).alias(c) for c in pawn_feats])
+            .toPandas()
+        )
+        summary = summary.sort_values("label_white_win")
+        plt.figure(figsize=(8, 4))
+        for _, row in summary.iterrows():
+            label = int(row["label_white_win"])
+            vals = [row[c] for c in pawn_feats]
+            plt.bar(
+                [f"{f}\n(label={label})" for f in pawn_feats],
+                vals,
+                alpha=0.6 if label == 0 else 0.9,
+                label=f"Resultado={label}",
+            )
+        plt.xticks(rotation=45, ha="right")
+        plt.title("Medias de features de peones por resultado (midgame)")
+        plt.ylabel("Valor medio")
+        plt.legend()
+        plt.tight_layout()
+        out = plots_dir / "efectos_peones_midgame.png"
+        plt.savefig(out, dpi=150)
+        plt.close()
+        return out
 
-    for r in hgb_metrics:
-        if r.get("importances_plot"):
-            kept_plots.add(Path(r["importances_plot"]))
-    for r in rf_metrics:
-        if r.get("importances_plot") and "midgame_move20" in r.get("phase", ""):
-            kept_plots.add(Path(r["importances_plot"]))
-
-    # Eliminar cualquier otra gráfica para asegurar máximo 5 y no confusión
-    for png in plots_dir.glob("*.png"):
-        if png not in kept_plots:
-            png.unlink(missing_ok=True)
+    pawn_plot = plot_pawn_feature_effects(df_feat)
+    print(f">>> Efectos de peones guardado en {pawn_plot}")
 
     spark.stop()
 

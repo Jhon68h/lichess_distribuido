@@ -32,6 +32,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
+from sklearn.inspection import permutation_importance
 
 
 def _prepare_phase_df(df: DataFrame, feature_cols: Iterable[str]) -> DataFrame:
@@ -404,17 +405,28 @@ def train_hgb_phase(
     except Exception:
         metrics["auc"] = None
 
-    importances = getattr(clf, "feature_importances_", None)
-    if plot and importances is not None:
-        imp_plot_path = plots_dir / f"{phase_name}_hgb_importancias.png"
-        title = phase_label or phase_name
-        _plot_feature_importances(
-            feature_cols,
-            importances.tolist(),
-            f"{title}: importancias (HGB)",
-            imp_plot_path,
+    metrics["importances_plot"] = None
+    # Importancias por permutación en validación
+    try:
+        perm = permutation_importance(
+            clf,
+            X_val,
+            y_val,
+            n_repeats=5,
+            random_state=42,
+            scoring="f1",
         )
-        metrics["importances_plot"] = str(imp_plot_path)
+        importances = perm.importances_mean
+        if plot:
+            imp_plot_path = plots_dir / f"{phase_name}_hgb_importancias.png"
+            title = phase_label or phase_name
+            _plot_feature_importances(
+                feature_cols,
+                importances.tolist(),
+                f"{title}: importancias (HGB)",
+                imp_plot_path,
+            )
+            metrics["importances_plot"] = str(imp_plot_path)
         pairs = sorted(
             zip(feature_cols, importances.tolist()),
             key=lambda x: x[1],
@@ -423,8 +435,8 @@ def train_hgb_phase(
         metrics["top_importances"] = [
             {"feature": n, "importance": float(v)} for n, v in pairs
         ]
-    else:
-        metrics["importances_plot"] = None
+    except Exception:
+        metrics["top_importances"] = []
 
     return metrics
 
