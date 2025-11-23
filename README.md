@@ -11,7 +11,7 @@ Pipeline local con PySpark para extraer features posicionales desde FEN/PGN de L
    - Para cluster standalone (1 maestro, 3 workers): exporta `SPARK_MASTER_URL=spark://<host-maestro>:7077` antes de ejecutar. El código usará ese master (por defecto local[*]) y fija `spark.sql.shuffle.partitions=200`.
 
 ## Qué hace `main_local.py`
-- Lee los CSV de `dataset/`.
+- Lee los CSV completos desde `../dataset/` (carpeta hermana al repo).
 - Construye FEN tras apertura, jugada 20 (midgame) y final.
 - Calcula features de peones/rey/material y movilidad de piezas para las tres fases.
 - Limpia FEN inválidos y balancea clases.

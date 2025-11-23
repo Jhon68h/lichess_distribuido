@@ -47,17 +47,18 @@ def balance_binary_dataset(df, label_col="label_white_win", ratio=1.0, seed=42):
 
 def main():
     base_dir = Path(__file__).resolve().parent
-    data_dir = base_dir.parent / "dataset"
-    exp_dir = base_dir.parent / "experimentos"
+    project_root = base_dir.parent
+    data_dir = project_root.parent / "dataset"  # carpeta de datos fuera del repo
+    exp_dir = project_root / "experimentos"
     plots_dir = exp_dir / "plots"
     exp_dir.mkdir(parents=True, exist_ok=True)
     plots_dir.mkdir(parents=True, exist_ok=True)
 
-    complete_path = data_dir / "Lichess_2013_2014_Complete_sample.csv"
-    pgn_path = data_dir / "Lichess_2013_2014_FEN_sample.csv"
+    complete_path = data_dir / "Lichess_2013_2014_Complete.csv"
+    pgn_path = data_dir / "Lichess_2013_2014_FEN.csv"
     output_parquet = exp_dir / "Lichess_2013_2014_features_full.parquet"
 
-    sample_size = None  # usar todo el sample disponible
+    sample_size = None  # usar todo el dataset disponible
     n_show = 10
 
     spark = create_spark_session("chess-ml-local")
