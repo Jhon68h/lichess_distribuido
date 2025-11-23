@@ -1,2 +1,3 @@
 dataset/*
 src/__pycache__/*
+experimentos/Lichess_2013_2014_features_full.parquet/*
