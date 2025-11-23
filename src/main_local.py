@@ -29,6 +29,22 @@ from model_training import (
 )
 
 
+def balance_binary_dataset(df, label_col="label_white_win", ratio=1.0, seed=42):
+    """
+    Balancea la clase mayoritaria bajando su proporción respecto a la minoritaria.
+    ratio=1.0 => deja las clases al 50/50 (aprox).
+    """
+    counts = {row[label_col]: row["count"] for row in df.groupBy(label_col).count().collect()}
+    if len(counts) < 2 or 0 not in counts or 1 not in counts:
+        return df  # no hay ambas clases
+
+    minority = 0 if counts[0] < counts[1] else 1
+    majority = 1 - minority
+    frac_majority = min(1.0, ratio * counts[minority] / counts[majority])
+    fractions = {float(minority): 1.0, float(majority): frac_majority}
+    return df.sampleBy(label_col, fractions=fractions, seed=seed)
+
+
 def main():
     base_dir = Path(__file__).resolve().parent
     data_dir = base_dir.parent / "dataset"
@@ -69,6 +85,11 @@ def main():
     ).cache()
     total_rows = df_feat.count()  # materializa
     print(f">>> Filas tras limpiar FEN inválidos: {total_rows}")
+
+    # Balancear clases para evitar colapso a la clase mayoritaria
+    df_feat = balance_binary_dataset(df_feat, label_col="label_white_win", ratio=1.0, seed=42).cache()
+    balanced_rows = df_feat.count()
+    print(f">>> Filas tras balancear clases: {balanced_rows}")
 
     print("\nVista rápida de midgame (después de 20 jugadas):")
     df_feat.select(
