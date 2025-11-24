@@ -10,6 +10,7 @@ Ejecución local de todo el flujo:
 """
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -58,11 +59,21 @@ def main():
     pgn_path = data_dir / "Lichess_2013_2014_FEN.csv"
     output_parquet = exp_dir / "Lichess_2013_2014_features_full.parquet"
 
-    sample_size = None  # usar todo el dataset disponible
+    # Tamaño de muestra opcional (puede venir de variable de entorno SAMPLE_SIZE)
+    sample_size_env = os.environ.get("SAMPLE_SIZE")
+    sample_size = int(sample_size_env) if sample_size_env else None
+
+    # Permitir desactivar mezcla aleatoria vía SHUFFLE=false
+    shuffle_env = os.environ.get("SHUFFLE", "true").lower()
+    shuffle = shuffle_env not in {"0", "false", "no"}
+
     n_show = 10
 
     spark = create_spark_session("chess-ml-local")
     spark.sparkContext.setLogLevel("ERROR")
+
+    print(f">>> Rutas de datos: complete={complete_path}, pgn={pgn_path}")
+    print(f">>> sample_size={sample_size}, shuffle={shuffle}")
 
     print("\n>>> Construyendo dataset base (PGN + FEN + label)...")
     df_base = build_base_dataset(
@@ -71,9 +82,16 @@ def main():
         pgn_path=str(pgn_path),
         pgn_col_name="FEN",
         sample_size=sample_size,
-        shuffle=True,
+        shuffle=shuffle,
         shuffle_seed=42,
     )
+    print(f">>> Particiones del dataset base: {df_base.rdd.getNumPartitions()}")
+
+    if sample_size is not None:
+        print(">>> Materializando dataset base para ver filas (sample_size activo)...")
+        df_base = df_base.cache()
+        base_rows = df_base.count()
+        print(f">>> Filas base cargadas: {base_rows}")
 
     print(">>> Añadiendo features posicionales para apertura/medio/final...")
     df_feat = add_all_positional_features(df_base).cache()
