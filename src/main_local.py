@@ -49,15 +49,18 @@ def balance_binary_dataset(df, label_col="label_white_win", ratio=1.0, seed=42):
 def main():
     base_dir = Path(__file__).resolve().parent
     project_root = base_dir.parent
-    data_dir = project_root.parent / "dataset"  # carpeta de datos fuera del repo
-    exp_dir = project_root / "experimentos"
+    data_dir = Path(os.environ.get("DATA_DIR", project_root.parent / "dataset"))
+    exp_dir = Path(os.environ.get("EXP_DIR", project_root / "experimentos"))
     plots_dir = exp_dir / "plots"
     exp_dir.mkdir(parents=True, exist_ok=True)
     plots_dir.mkdir(parents=True, exist_ok=True)
 
-    complete_path = data_dir / "Lichess_2013_2014_Complete.csv"
-    pgn_path = data_dir / "Lichess_2013_2014_FEN.csv"
-    output_parquet = exp_dir / "Lichess_2013_2014_features_full.parquet"
+    # Permitir override por env para usar carpetas o globs (ej. partes divididas)
+    complete_path_env = os.environ.get("COMPLETE_PATH")
+    pgn_path_env = os.environ.get("PGN_PATH")
+    complete_path = Path(complete_path_env) if complete_path_env else data_dir / "Lichess_2013_2014_Complete.csv"
+    pgn_path = Path(pgn_path_env) if pgn_path_env else data_dir / "Lichess_2013_2014_FEN.csv"
+    output_parquet = Path(os.environ.get("OUTPUT_PARQUET", exp_dir / "Lichess_2013_2014_features_full.parquet"))
 
     # Tamaño de muestra opcional (puede venir de variable de entorno SAMPLE_SIZE)
     sample_size_env = os.environ.get("SAMPLE_SIZE")
