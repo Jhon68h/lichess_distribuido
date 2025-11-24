@@ -244,9 +244,11 @@ def build_base_dataset(
 
     # El CSV de FEN/PGN puede contener saltos de línea dentro de las comillas,
     # por eso activamos multiLine=True para que cada partida quede en una sola fila.
+    # Usamos header=False porque las partes divididas no replican el encabezado;
+    # luego tomamos solo la primera columna como PGN/FEN.
     pgn_df = (
         spark.read
-        .option("header", True)
+        .option("header", False)
         .option("multiLine", True)
         .csv(pgn_path)
     )
@@ -258,7 +260,7 @@ def build_base_dataset(
 
     # Solo tomar la primera columna del CSV PGN/FEN (el resto se ignora)
     pgn_first_col = pgn_df.columns[0] if pgn_df.columns else pgn_col_name
-    pgn_df = pgn_df.select(pgn_first_col)
+    pgn_df = pgn_df.select(F.col(pgn_first_col).alias("PGN"))
 
     # Alineamos por fila usando un índice artificial
     complete_df = add_row_index(complete_df, index_col="row_id")
@@ -267,7 +269,7 @@ def build_base_dataset(
     # Solo usamos la columna con los movimientos, ignorando Site u otras
     pgn_df = pgn_df.select(
         "row_id",
-        F.col(pgn_first_col).alias("PGN"),
+        F.col("PGN"),
     )
 
     df = (
