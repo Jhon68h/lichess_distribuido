@@ -23,16 +23,22 @@ MIDGAME_MOVES = 20
 
 
 def create_spark_session(app_name: str = "chess-ml-local") -> SparkSession:
-    """Crea la sesión Spark respetando SPARK_MASTER_URL si está definido."""
-    master = os.environ.get("SPARK_MASTER_URL", "local[*]")
-    shuffle_partitions = os.environ.get("SPARK_SQL_SHUFFLE_PARTITIONS", "200")
-    spark = (
-        SparkSession.builder
-        .appName(app_name)
-        .master(master)
-        .config("spark.sql.shuffle.partitions", shuffle_partitions)
-        .getOrCreate()
-    )
+    """
+    Crea la sesión Spark.
+    - Si hay SPARK_MASTER_URL, se usa ese master.
+    - Si no, respeta el master que venga de spark-submit (no lo sobrescribimos a local[*]).
+    - SPARK_SQL_SHUFFLE_PARTITIONS permite ajustar particiones (si no se define, se deja el valor por defecto de Spark).
+    """
+    master_env = os.environ.get("SPARK_MASTER_URL")
+    shuffle_partitions = os.environ.get("SPARK_SQL_SHUFFLE_PARTITIONS")
+
+    builder = SparkSession.builder.appName(app_name)
+    if master_env:
+        builder = builder.master(master_env)
+    if shuffle_partitions:
+        builder = builder.config("spark.sql.shuffle.partitions", shuffle_partitions)
+
+    spark = builder.getOrCreate()
     print(f">>> Spark master en uso: {spark.sparkContext.master}")
     return spark
 
