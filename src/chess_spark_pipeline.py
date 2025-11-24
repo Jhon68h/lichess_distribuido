@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 
 import chess
 import chess.pgn
@@ -22,12 +23,18 @@ MIDGAME_MOVES = 20
 
 
 def create_spark_session(app_name: str = "chess-ml-local") -> SparkSession:
-    return (
+    """Crea la sesión Spark respetando SPARK_MASTER_URL si está definido."""
+    master = os.environ.get("SPARK_MASTER_URL", "local[*]")
+    shuffle_partitions = os.environ.get("SPARK_SQL_SHUFFLE_PARTITIONS", "200")
+    spark = (
         SparkSession.builder
         .appName(app_name)
-        .master("local[*]")
+        .master(master)
+        .config("spark.sql.shuffle.partitions", shuffle_partitions)
         .getOrCreate()
     )
+    print(f">>> Spark master en uso: {spark.sparkContext.master}")
+    return spark
 
 
 def winner_to_label(winner: str):
