@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
 """
 Entrenamiento y evaluación de modelos para predecir si ganan blancas:
