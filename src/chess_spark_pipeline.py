@@ -28,15 +28,29 @@ def create_spark_session(app_name: str = "chess-ml-local") -> SparkSession:
     - Si hay SPARK_MASTER_URL, se usa ese master.
     - Si no, respeta el master que venga de spark-submit (no lo sobrescribimos a local[*]).
     - SPARK_SQL_SHUFFLE_PARTITIONS permite ajustar particiones (si no se define, se deja el valor por defecto de Spark).
+    - SPARK_DRIVER_HOST / SPARK_DRIVER_BIND_ADDRESS permiten exponer el driver (p.ej. en clúster multi-host).
+    - SPARK_EXECUTOR_MEMORY / SPARK_EXECUTOR_CORES permiten fijar recursos por ejecutor desde entorno.
     """
     master_env = os.environ.get("SPARK_MASTER_URL")
     shuffle_partitions = os.environ.get("SPARK_SQL_SHUFFLE_PARTITIONS")
+    driver_host = os.environ.get("SPARK_DRIVER_HOST")
+    driver_bind = os.environ.get("SPARK_DRIVER_BIND_ADDRESS")
+    executor_mem = os.environ.get("SPARK_EXECUTOR_MEMORY")
+    executor_cores = os.environ.get("SPARK_EXECUTOR_CORES")
 
     builder = SparkSession.builder.appName(app_name)
     if master_env:
         builder = builder.master(master_env)
     if shuffle_partitions:
         builder = builder.config("spark.sql.shuffle.partitions", shuffle_partitions)
+    if driver_host:
+        builder = builder.config("spark.driver.host", driver_host)
+    if driver_bind:
+        builder = builder.config("spark.driver.bindAddress", driver_bind)
+    if executor_mem:
+        builder = builder.config("spark.executor.memory", executor_mem)
+    if executor_cores:
+        builder = builder.config("spark.executor.cores", executor_cores)
 
     spark = builder.getOrCreate()
     print(f">>> Spark master en uso: {spark.sparkContext.master}")
