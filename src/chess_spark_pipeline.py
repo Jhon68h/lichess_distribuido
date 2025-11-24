@@ -190,10 +190,11 @@ total_moves_udf = F.udf(total_moves_from_pgn, T.IntegerType())
 
 def add_row_index(df, index_col: str = "row_id"):
     """
-    Añade un índice incremental para poder alinear datasets por fila.
+    Añade un índice incremental para alinear datasets por fila.
+    Se usa monotonically_increasing_id para evitar un shuffle completo.
+    Nota: no garantiza consecutividad perfecta, pero mantiene el orden de lectura.
     """
-    window = Window.orderBy(F.monotonically_increasing_id())
-    return df.withColumn(index_col, F.row_number().over(window))
+    return df.withColumn(index_col, F.monotonically_increasing_id())
 
 
 def build_base_dataset(
@@ -228,6 +229,11 @@ def build_base_dataset(
     )
 
     pgn_df = spark.read.option("header", True).csv(pgn_path)
+
+    # Si se pasa sample_size, limitamos ambos datasets antes de indexar para evitar leer todo
+    if sample_size is not None:
+        complete_df = complete_df.limit(sample_size)
+        pgn_df = pgn_df.limit(sample_size)
 
     # Solo tomar la primera columna del CSV PGN/FEN (el resto se ignora)
     pgn_first_col = pgn_df.columns[0] if pgn_df.columns else pgn_col_name
