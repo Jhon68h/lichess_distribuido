@@ -242,7 +242,14 @@ def build_base_dataset(
         .csv(complete_path)
     )
 
-    pgn_df = spark.read.option("header", True).csv(pgn_path)
+    # El CSV de FEN/PGN puede contener saltos de línea dentro de las comillas,
+    # por eso activamos multiLine=True para que cada partida quede en una sola fila.
+    pgn_df = (
+        spark.read
+        .option("header", True)
+        .option("multiLine", True)
+        .csv(pgn_path)
+    )
 
     # Si se pasa sample_size, limitamos ambos datasets antes de indexar para evitar leer todo
     if sample_size is not None:
