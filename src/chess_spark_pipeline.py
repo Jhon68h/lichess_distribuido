@@ -13,6 +13,25 @@ from pyspark.sql.window import Window
 
 from chess_features import extract_features_from_fen
 
+# Columnas esperadas en el CSV "Complete"
+COMPLETE_COLUMNS = [
+    "WhiteElo",
+    "BlackElo",
+    "WhiteName",
+    "BlackName",
+    "Winner",
+    "Termination",
+    "Site",
+    "Day",
+    "Month",
+    "Year",
+    "InitialTime",
+    "Increment",
+    "TimeControl",
+    "Opening",
+    "ECO",
+    "Number_of_Moves",
+]
 
 
 # Número de movimientos completos (1., 2., 3., ...) que consideramos "apertura"
@@ -28,15 +47,29 @@ def create_spark_session(app_name: str = "chess-ml-local") -> SparkSession:
     - Si hay SPARK_MASTER_URL, se usa ese master.
     - Si no, respeta el master que venga de spark-submit (no lo sobrescribimos a local[*]).
     - SPARK_SQL_SHUFFLE_PARTITIONS permite ajustar particiones (si no se define, se deja el valor por defecto de Spark).
+    - SPARK_DRIVER_HOST / SPARK_DRIVER_BIND_ADDRESS permiten exponer el driver (p.ej. en clúster multi-host).
+    - SPARK_EXECUTOR_MEMORY / SPARK_EXECUTOR_CORES permiten fijar recursos por ejecutor desde entorno.
     """
     master_env = os.environ.get("SPARK_MASTER_URL")
     shuffle_partitions = os.environ.get("SPARK_SQL_SHUFFLE_PARTITIONS")
+    driver_host = os.environ.get("SPARK_DRIVER_HOST")
+    driver_bind = os.environ.get("SPARK_DRIVER_BIND_ADDRESS")
+    executor_mem = os.environ.get("SPARK_EXECUTOR_MEMORY")
+    executor_cores = os.environ.get("SPARK_EXECUTOR_CORES")
 
     builder = SparkSession.builder.appName(app_name)
     if master_env:
         builder = builder.master(master_env)
     if shuffle_partitions:
         builder = builder.config("spark.sql.shuffle.partitions", shuffle_partitions)
+    if driver_host:
+        builder = builder.config("spark.driver.host", driver_host)
+    if driver_bind:
+        builder = builder.config("spark.driver.bindAddress", driver_bind)
+    if executor_mem:
+        builder = builder.config("spark.executor.memory", executor_mem)
+    if executor_cores:
+        builder = builder.config("spark.executor.cores", executor_cores)
 
     spark = builder.getOrCreate()
     print(f">>> Spark master en uso: {spark.sparkContext.master}")
@@ -221,14 +254,24 @@ def build_base_dataset(
     - total_moves         (nº total de movimientos de la partida)
     """
 
-    # Carga de los dos CSV
+    # Carga de los dos CSV (partes sin encabezado)
     complete_df = (
         spark.read
-        .option("header", True)
+        .option("header", False)
         .csv(complete_path)
     )
-
-    pgn_df = spark.read.option("header", True).csv(pgn_path)
+    if len(complete_df.columns) >= len(COMPLETE_COLUMNS):
+        complete_df = complete_df.select(complete_df.columns[: len(COMPLETE_COLUMNS)]).toDF(*COMPLETE_COLUMNS)
+    # El CSV de FEN/PGN puede contener saltos de línea dentro de las comillas,
+    # por eso activamos multiLine=True para que cada partida quede en una sola fila.
+    # Usamos header=False porque las partes divididas no replican el encabezado;
+    # luego tomamos solo la primera columna como PGN/FEN.
+    pgn_df = (
+        spark.read
+        .option("header", False)
+        .option("multiLine", True)
+        .csv(pgn_path)
+    )
 
     # Si se pasa sample_size, limitamos ambos datasets antes de indexar para evitar leer todo
     if sample_size is not None:
@@ -237,7 +280,12 @@ def build_base_dataset(
 
     # Solo tomar la primera columna del CSV PGN/FEN (el resto se ignora)
     pgn_first_col = pgn_df.columns[0] if pgn_df.columns else pgn_col_name
-    pgn_df = pgn_df.select(pgn_first_col)
+    pgn_df = pgn_df.select(F.col(pgn_first_col).alias("PGN"))
+
+    # Si el CSV completo traía encabezado, eliminamos la fila de encabezado (Winner/WhiteElo)
+    # para evitar que quede como dato. En las partes sin encabezado no afecta.
+    if "Winner" in complete_df.columns:
+        complete_df = complete_df.filter(F.col("Winner") != "Winner")
 
     # Alineamos por fila usando un índice artificial
     complete_df = add_row_index(complete_df, index_col="row_id")
@@ -246,7 +294,7 @@ def build_base_dataset(
     # Solo usamos la columna con los movimientos, ignorando Site u otras
     pgn_df = pgn_df.select(
         "row_id",
-        F.col(pgn_first_col).alias("PGN"),
+        F.col("PGN"),
     )
 
     df = (
